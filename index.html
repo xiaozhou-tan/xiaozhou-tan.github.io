@@ -4,20 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Xiaozhou (Leo) Tan — Data scientist</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Xiaozhou (Leo) Tan — Data scientist">
+<meta property="og:description" content="Data scientist working across machine learning, LLM systems and applied statistics. London.">
+<meta property="og:url" content="https://xiaozhou-tan.github.io/">
+<meta property="og:image" content="https://xiaozhou-tan.github.io/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Data scientist working across machine learning, LLM systems and applied statistics. London.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Raleway:wght@300;400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="variables.css">
 <style>
 :root{
-  --obsidian:var(--color-obsidian);
-  --paper:var(--color-paper);
-  --felt:var(--color-felt-gray);
-  --ash:var(--color-ash-mist);
   --font:'Roobert','Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
   --font-alt:'Raleway',ui-sans-serif,system-ui,-apple-system,sans-serif;
-  --page:var(--page-max-width);
+  --page:1078px;            /* was variables.css --page-max-width */
   --ease:cubic-bezier(0.19,1,0.22,1);
   --ink:#ffffff;
   --quiet:rgba(255,255,255,.62);
@@ -241,21 +245,7 @@ body[data-trans="t2"] .snapsec > .wrap{
   .eyebrow{margin-bottom:24px}
 }
 
-/* ---------- direction switcher (temporary — remove once chosen) ---------- */
-.dirs{position:fixed;left:16px;bottom:16px;z-index:50;display:flex;gap:6px;
-  align-items:center;font-size:10px;letter-spacing:.1em}
-.dirs.trans{bottom:52px}
-.dirs b{font-weight:400;color:var(--faint);margin-right:6px;min-width:52px}
-.dirs button{background:transparent;color:var(--quiet);border:1px solid var(--hair);
-  border-radius:75px;padding:7px 14px;font:400 10px/1 var(--font);
-  letter-spacing:.1em;cursor:pointer;transition:color .5s var(--ease),border-color .5s var(--ease)}
-.dirs button[aria-pressed="true"]{color:var(--ink);border-color:var(--ink)}
 
-.glerr{position:fixed;left:16px;bottom:64px;z-index:90;max-width:min(560px,calc(100vw - 32px));
-  background:#a02d25;color:#fff;padding:16px 18px;font-size:12px;line-height:1.45;display:none}
-.glerr.on{display:block}
-.glerr b{display:block;font-weight:600;margin-bottom:8px}
-.glerr pre{white-space:pre-wrap;font-size:11px;margin-top:8px;max-height:180px;overflow:auto}
 
 @media (max-width:860px){
   /* the desktop layout places these on explicit rows; collapsing to one
@@ -292,12 +282,13 @@ body[data-trans="t2"] .snapsec > .wrap{
 }
 </style>
 </head>
+<!-- scroll direction: a FIELD | b BREATHES | c TYPE
+     section handoff: t1 CARRY | t2 APERTURE -->
 <body data-dir="a" data-trans="t1">
 
 <a class="skip" href="#work">Skip to what I do</a>
 <div class="fieldlayer" id="field"><div class="wash"></div></div>
 <div class="scrim" id="scrim"></div>
-<noscript><style>.dirs{display:none}</style></noscript>
 
 <header class="topbar">
   <div class="wrap">
@@ -500,21 +491,7 @@ body[data-trans="t2"] .snapsec > .wrap{
 
 </div><!-- /.page -->
 
-<div class="dirs" role="group" aria-label="Scroll direction (temporary)">
-  <b>SCROLL</b>
-  <button type="button" data-dir="a" aria-pressed="true">A · FIELD</button>
-  <button type="button" data-dir="b" aria-pressed="false">B · BREATHES</button>
-  <button type="button" data-dir="c" aria-pressed="false">C · TYPE</button>
-</div>
 
-<div class="dirs trans" role="group" aria-label="Section transition (temporary)">
-  <b>HANDOFF</b>
-  <button type="button" data-trans="t1" aria-pressed="true">T1 · CARRY</button>
-  <button type="button" data-trans="t2" aria-pressed="false">T2 · APERTURE</button>
-</div>
-
-<div class="glerr" id="glerr"><b>The background field did not start.</b>
-<span id="glerrmsg"></span><pre id="glerrlog"></pre></div>
 
 <script>
 var VERT =
@@ -645,9 +622,9 @@ for(var k in DEFAULTS) P[k] = DEFAULTS[k];
 var PIXEL_BUDGET = 2.8e6;
 
 function fail(msg, log){
-  document.getElementById('glerrmsg').textContent = msg;
-  document.getElementById('glerrlog').textContent = log || '';
-  document.getElementById('glerr').classList.add('on');
+  /* the CSS gradient in .wash is the fallback and needs no help; this is
+     only here so the reason is recoverable from the console */
+  if(window.console) console.warn('[field] ' + msg, log || '');
   return false;
 }
 
@@ -999,23 +976,6 @@ mountField(document.getElementById('field'));
   if(!REDUCED) requestAnimationFrame(tick);
   else scrim.style.opacity = '0.80';
 
-  document.querySelectorAll('.dirs button').forEach(function(b){
-    b.addEventListener('click', function(){
-      body.dataset.dir = b.dataset.dir;
-      document.querySelectorAll('.dirs button').forEach(function(x){
-        x.setAttribute('aria-pressed', String(x === b));
-      });
-    });
-  });
-  document.querySelectorAll('.trans button').forEach(function(b){
-    b.addEventListener('click', function(){
-      body.dataset.trans = b.dataset.trans;
-      snaps.forEach(function(e){ e.style.removeProperty('--e'); });
-      document.querySelectorAll('.trans button').forEach(function(x){
-        x.setAttribute('aria-pressed', String(x === b));
-      });
-    });
-  });
 })();
 
 /* ---- disclosure -----------------------------------------------------
