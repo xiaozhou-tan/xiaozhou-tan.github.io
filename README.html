@@ -1,1 +1,1053 @@
-hi
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xiaozhou (Leo) Tan — Data scientist</title>
+<meta name="description" content="Data scientist working across machine learning, LLM systems and applied statistics. London.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Raleway:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="variables.css">
+<style>
+:root{
+  --obsidian:var(--color-obsidian);
+  --paper:var(--color-paper);
+  --felt:var(--color-felt-gray);
+  --ash:var(--color-ash-mist);
+  --font:'Roobert','Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --font-alt:'Raleway',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --page:var(--page-max-width);
+  --ease:cubic-bezier(0.19,1,0.22,1);
+  --ink:#ffffff;
+  --quiet:rgba(255,255,255,.62);
+  --faint:rgba(255,255,255,.55);   /* 6.3:1 on the floor; .40 measured 3.76:1 */
+  --hair:rgba(255,255,255,.20);
+  --floor:#080808;          /* the shader's own canvas floor */
+  --v:0;                    /* scroll velocity, 0-1, set per frame */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--font);background:var(--floor);color:var(--ink);
+  -webkit-font-smoothing:antialiased;font-size:18px;line-height:1.21;
+  overflow-x:hidden}
+.wrap{max-width:var(--page);margin:0 auto;padding-inline:28px}
+
+/* the field is one fixed layer behind the whole document, not a hero-only
+   effect — it is the same canvas, shader and scroll coupling throughout */
+.fieldlayer{position:fixed;inset:0;z-index:0;background:var(--floor)}
+.wash{position:absolute;inset:-20%;filter:blur(60px);opacity:.85;
+  background:
+    radial-gradient(45% 60% at 18% 40%, rgba(160,224,171,.95), transparent 70%),
+    radial-gradient(50% 55% at 52% 62%, rgba(255,172,46,.9), transparent 70%),
+    radial-gradient(55% 70% at 84% 38%, rgba(165,45,37,.95), transparent 72%),
+    #120b08}
+.fieldlayer.gl .wash{display:none}
+.field{position:absolute;inset:0;display:block;width:100%;height:100%}
+/* quietens the field below the hero so body copy keeps its contrast */
+.scrim{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:var(--floor);opacity:.88;will-change:opacity}
+.page{position:relative;z-index:2}
+
+a{color:inherit}
+.skip{position:absolute;left:-9999px;top:0;z-index:60;background:var(--floor);
+  color:#fff;padding:12px 20px;font-size:12px}
+.skip:focus{left:16px;top:16px}
+:focus-visible{outline:1px solid #fff;outline-offset:6px}
+
+/* contact is never more than one glance away, at any scroll position */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:40;padding-block:26px;
+  font-size:11px;letter-spacing:.04em}
+.topbar .wrap{display:flex;justify-content:space-between;gap:20px;align-items:baseline}
+.topbar a{text-decoration:none;transition:opacity .8s var(--ease)}
+.topbar a:hover{opacity:.62}
+.topbar .who{letter-spacing:.12em}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;
+  justify-content:center}
+/* auto inline margins on a column flex item override align-items:stretch,
+   which left the hero wrap sized to its content and out of line with the
+   rest of the page */
+.hero > .wrap{width:100%}
+.display{font-weight:400;line-height:1.0;letter-spacing:-.015em;
+  font-size:clamp(58px,15.5vw,178px)}
+.rolebar{margin-top:34px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.rolebar span{font-size:clamp(16px,2.1vw,29px);font-weight:300;line-height:1.25}
+.rolebar i{font-style:normal;color:rgba(255,255,255,.45)}
+/* The field's bright arc sweeps through the type. Measured against the
+   brightest frame of the cycle (14 samples of u_time, background locally
+   averaged so the shader's grain is not read as a contrast floor), white
+   11px type came out at 3.72:1 in the topbar and 3.97:1 in the hero label
+   — both under the 4.5:1 AA floor — because the centre radial never
+   reaches the edges where that type sits. Four soft washes, all in the
+   page layer, so the hero's shader and scroll coupling stay untouched:
+   centre, top edge, bottom edge, and the bottom-right corner where the
+   field pools brightest.
+
+   Worst case after, over 29 samples of u_time spanning t=0..1600:
+   topbar 5.09, label 5.19, availability 4.60, headline 4.14, rolebar 3.17.
+   These are empirical, not guaranteed. The shader's tone map bounds output
+   below #d8b075 for every t, and white on that ceiling is 2.02:1 — so a
+   frame that fails AA here is admissible, just not one 29 samples found.
+   Below the hero the scrim makes the same ceiling provably safe: 6.79:1 for
+   body copy, 5.66:1 for meta, with no sampling involved. */
+.herowash{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(34% 26% at 92% 102%, rgba(0,0,0,.34), rgba(0,0,0,0) 100%),
+    linear-gradient(to bottom, rgba(0,0,0,0) 78%, rgba(0,0,0,.18) 100%),
+    linear-gradient(to bottom, rgba(0,0,0,.16), rgba(0,0,0,0) 17%),
+    radial-gradient(62% 46% at 50% 44%, rgba(0,0,0,.40), rgba(0,0,0,0) 76%)}
+.hero > .wrap{position:relative;z-index:1}
+.herolabel{position:absolute;left:0;right:0;bottom:48px;z-index:1}
+.herolabel .wrap{display:flex;justify-content:space-between;gap:28px;align-items:flex-end}
+.micro{font-size:11px;line-height:1.36}
+.dim{color:var(--quiet)}
+/* 11px at 62% white sits in the hero's brightest corner and measures 1.92:1
+   against the field at its brightest frame. No wash rescues it without
+   flattening that corner; at full white the same spot measures 4.60:1.
+   Hierarchy here is carried by position, not by opacity. */
+.herolabel .micro.dim{color:var(--ink)}
+.stagebar{position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:rgba(255,255,255,.5);transform:scaleX(0);transform-origin:left center}
+
+/* ---------- sections ---------- */
+section{padding-block:clamp(96px,13vw,152px)}
+.eyebrow{font-size:11px;letter-spacing:.14em;color:var(--faint);margin-bottom:40px}
+.whisper{font-weight:300;line-height:1.1;font-size:clamp(30px,5.4vw,78px);
+  max-width:17ch;text-wrap:balance}
+.lede{font-size:clamp(17px,1.4vw,18px);line-height:1.58;max-width:58ch;
+  color:var(--quiet);margin-top:32px}
+
+/* ---------- progressive disclosure ---------- */
+.caps{margin-top:clamp(56px,7vw,88px)}
+.cap{border-top:1px solid var(--hair)}
+.cap:last-of-type{border-bottom:1px solid var(--hair)}
+.cap summary{list-style:none;cursor:pointer;display:grid;
+  grid-template-columns:132px 1fr 82px;gap:0 28px;align-items:start;
+  padding-block:clamp(26px,3vw,38px)}
+.capnum{grid-column:1;grid-row:1}
+.captitle{grid-column:2;grid-row:1}
+.capsum{grid-column:2;grid-row:2}
+.capmore{grid-column:3;grid-row:1}
+.cap summary::-webkit-details-marker{display:none}
+.capnum{font-size:11px;letter-spacing:.14em;color:var(--faint);padding-top:.55em;line-height:1.5}
+.capnum b{display:block;font-weight:400;color:var(--quiet);margin-top:6px}
+.captitle{font-weight:300;font-size:clamp(23px,3.5vw,45px);line-height:1.16;
+  max-width:19ch;text-wrap:balance;
+  letter-spacing:calc(-0.012em + (var(--v) * 0.03em));
+  transition:letter-spacing .12s linear}
+.capsum{display:block;font-size:16px;line-height:1.5;color:var(--quiet);
+  margin-top:16px;max-width:46ch}
+.capmore{font-size:11px;letter-spacing:.12em;color:var(--faint);
+  justify-self:end;padding-top:.55em;white-space:nowrap;
+  transition:color .8s var(--ease)}
+.cap summary:hover .capmore,.cap summary:focus-visible .capmore{color:var(--ink)}
+.capmore::after{content:'OPEN'}
+.cap[open] .capmore::after{content:'CLOSE'}
+.capwrap{overflow:hidden}
+.capbody{padding-bottom:clamp(34px,4vw,52px);
+  display:grid;grid-template-columns:132px 1fr;gap:0 28px}
+.capbody .inner{max-width:62ch}
+.capbody p{font-size:16px;line-height:1.62;color:var(--quiet);margin-bottom:20px}
+.capbody p strong{color:var(--ink);font-weight:400}
+.capbody .work{margin-top:34px;display:grid;gap:28px}
+.capbody .work div{display:grid;grid-template-columns:1fr;gap:8px}
+.capbody h4{font-size:16px;font-weight:400;line-height:1.4;color:var(--ink)}
+.capbody .work p{margin:0;font-size:15px}
+.capbody .meta{font-size:11px;line-height:1.45;color:var(--faint);letter-spacing:.04em}
+
+/* ---------- how I work ---------- */
+.practice{list-style:none;margin-top:clamp(48px,6vw,72px)}
+.practice li{font-size:clamp(22px,4.2vw,54px);font-weight:300;line-height:1.32;
+  padding-block:clamp(22px,2.6vw,30px);border-top:1px solid var(--hair);
+  max-width:24ch;text-wrap:balance}
+.practice li:last-child{border-bottom:1px solid var(--hair)}
+
+/* ---------- background ---------- */
+.creds{margin-top:clamp(48px,6vw,72px);display:grid;gap:0}
+.crow{display:grid;grid-template-columns:200px 1fr;gap:0 28px;
+  padding-block:24px;border-top:1px solid var(--hair)}
+.crow:last-child{border-bottom:1px solid var(--hair)}
+.crow dt{font-size:11px;letter-spacing:.12em;color:var(--faint);padding-top:.25em}
+.crow dd{font-size:16px;line-height:1.5}
+.crow dd span{display:block;color:var(--quiet);font-size:15px;margin-top:6px}
+
+/* ---------- contact ---------- */
+.contact .whisper{max-width:15ch}
+.clinks{margin-top:clamp(40px,5vw,60px);display:flex;flex-wrap:wrap;gap:14px 48px}
+.clinks a{font-size:clamp(20px,2.6vw,29px);font-weight:300;text-decoration:none;
+  transition:opacity .8s var(--ease)}
+.clinks a:hover{opacity:.62}
+footer{padding-block:56px 44px;border-top:1px solid var(--hair);
+  font-size:11px;color:var(--faint);line-height:1.5}
+footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+
+/* ---------- section snapping ------------------------------------------
+   `proximity`, never `mandatory`: a hard flick carries through several
+   boundaries and only settles when it comes to rest near one. scroll-snap-stop
+   stays at its default `normal` for the same reason — `always` would stop the
+   page dead at every section, which is exactly the punishment a skimming
+   recruiter must not get.
+
+   A snap point is only given to a section that FITS the viewport (JS adds
+   .snap on load and on resize). "What I do" never fits, so it has no snap
+   point and scrolls freely; snapping resumes at the next section that fits.
+   The same rule covers short laptop screens, where the denser sections stop
+   qualifying on their own rather than trapping content off-screen. */
+html{scroll-snap-type:y proximity}
+.snap{scroll-snap-align:start}
+.snapsec{min-height:100svh;display:flex;align-items:center}
+.snapsec > .wrap{width:100%}
+
+/* ---------- section transition (temporary — two options to choose from) ----
+   Both read the same velocity Motion.update() hands the shader, so the page
+   moves on the hero's signal rather than on a scroll-position progress bar.
+   Both rest at zero displacement: nothing moves unless the page is moving.
+
+   T1 CARRY    — content lags the viewport by the signed velocity and settles
+                 on the field's own decay curve. Weight, not a fade.
+   T2 APERTURE — the handoff is carried by the field: each section's own
+                 distance from settling, scaled by how fast you are going, so
+                 a drift is almost invisible and a flick opens the field. */
+body[data-trans="t1"] .snapsec > .wrap{
+  transform:translate3d(0,calc(var(--vs) * -22px),0)}
+body[data-trans="t2"] .snapsec > .wrap{
+  transform:translate3d(0,calc(var(--e,0) * 20px),0);
+  opacity:calc(1 - var(--e,0) * 0.45)}
+
+/* Viewport-height tiers, so the snap sections keep FITTING and therefore keep
+   qualifying. Background is the tallest of them; without the first tier it
+   misses the snap on any laptop under ~1250px of viewport. 96px is already the
+   floor of the section padding clamp, so tier one stays inside the type scale
+   rather than inventing a tighter one. */
+@media (max-height:1100px){
+  section{padding-block:96px}
+  .crow{padding-block:18px}
+  .creds{margin-top:48px}
+}
+@media (max-height:860px){
+  section{padding-block:48px}
+  /* the topbar is fixed and ~65px tall; at a settled snap the section's first
+     line must clear it, so the top padding has a floor the tier cannot cross */
+  .snapsec{padding-top:96px}
+  .practice li{padding-block:14px}
+  /* Background is the tallest snap section; these two lines are what keep it
+     under an 800px viewport once the topbar clearance is paid for, and so
+     keep it snapping rather than dropping to free scroll. */
+  .crow{padding-block:8px}
+  .crow dd span{margin-top:4px}
+  .creds,.practice,.caps,.clinks{margin-top:28px}
+  .eyebrow{margin-bottom:24px}
+}
+
+/* ---------- direction switcher (temporary — remove once chosen) ---------- */
+.dirs{position:fixed;left:16px;bottom:16px;z-index:50;display:flex;gap:6px;
+  align-items:center;font-size:10px;letter-spacing:.1em}
+.dirs.trans{bottom:52px}
+.dirs b{font-weight:400;color:var(--faint);margin-right:6px;min-width:52px}
+.dirs button{background:transparent;color:var(--quiet);border:1px solid var(--hair);
+  border-radius:75px;padding:7px 14px;font:400 10px/1 var(--font);
+  letter-spacing:.1em;cursor:pointer;transition:color .5s var(--ease),border-color .5s var(--ease)}
+.dirs button[aria-pressed="true"]{color:var(--ink);border-color:var(--ink)}
+
+.glerr{position:fixed;left:16px;bottom:64px;z-index:90;max-width:min(560px,calc(100vw - 32px));
+  background:#a02d25;color:#fff;padding:16px 18px;font-size:12px;line-height:1.45;display:none}
+.glerr.on{display:block}
+.glerr b{display:block;font-weight:600;margin-bottom:8px}
+.glerr pre{white-space:pre-wrap;font-size:11px;margin-top:8px;max-height:180px;overflow:auto}
+
+@media (max-width:860px){
+  /* the desktop layout places these on explicit rows; collapsing to one
+     column without also releasing the rows stacked them on top of each other */
+  .cap summary{grid-template-columns:1fr;gap:0}
+  .capnum,.captitle,.capsum,.capmore{grid-column:1;grid-row:auto}
+  .capnum b{display:inline;margin-left:8px}
+  .capmore{justify-self:start;padding-top:18px}
+  .capnum{padding-top:0;margin-bottom:14px}
+  .capbody{grid-template-columns:1fr}
+  .crow{grid-template-columns:1fr;gap:8px}
+  .herolabel{bottom:34px}
+  .herolabel .wrap{flex-direction:column;align-items:flex-start;gap:10px}
+}
+/* hero-lab.html carries no responsive rules for the hero, so the rolebar's
+   narrow-width behaviour was never designed: the separators are flex items,
+   so a wrap can leave one dangling at the end of a line ("Statistics /
+   Machine learning /" then "AI engineering"). Below 560px the three roles
+   get their own lines and the separators go, which is what the wrap was
+   trying to express anyway. */
+@media (max-width:560px){
+  .rolebar{flex-direction:column;align-items:flex-start;gap:4px}
+  .rolebar i{display:none}
+}
+@media (max-width:420px){
+  .wrap{padding-inline:20px}
+  body{font-size:17px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto;scroll-snap-type:none}
+  .captitle{letter-spacing:-.012em}
+  .snapsec > .wrap{transform:none!important;opacity:1!important}
+}
+</style>
+</head>
+<body data-dir="a" data-trans="t1">
+
+<a class="skip" href="#work">Skip to what I do</a>
+<div class="fieldlayer" id="field"><div class="wash"></div></div>
+<div class="scrim" id="scrim"></div>
+<noscript><style>.dirs{display:none}</style></noscript>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="who" href="#top">XIAOZHOU (LEO) TAN</a>
+    <a href="mailto:xiaozhou.t@outlook.com">xiaozhou.t@outlook.com</a>
+  </div>
+</header>
+
+<div class="page">
+
+<div class="hero" id="top">
+  <div class="herowash" aria-hidden="true"></div>
+  <div class="wrap">
+    <h1 class="display">Leo Tan</h1>
+    <div class="rolebar">
+      <span>Statistics</span><i>/</i><span>Machine learning</span><i>/</i><span>AI engineering</span>
+    </div>
+  </div>
+  <div class="herolabel"><div class="wrap">
+    <p class="micro" style="max-width:36ch">Data scientist at a behavioural science consultancy.<br>Honorary Research Fellow, UCL. London.</p>
+    <p class="micro dim">Available for new roles</p>
+  </div></div>
+  <div class="stagebar" id="stagebar"></div>
+</div>
+
+<section id="intro" class="snapsec"><div class="wrap">
+  <p class="whisper">I build systems that read people, and the tests that say whether they worked.</p>
+  <p class="lede">Trained as a behavioural scientist, working as an engineer. Most of what I do
+  sits in the gap between a model that runs and a model anyone should act on &mdash; retrieval and
+  evaluation inside a live product, clustering on data that was never designed to be joined,
+  randomised trials that can carry a decision. Currently at a behavioural science consultancy in
+  London, and an Honorary Research Fellow at UCL.</p>
+</div></section>
+
+<section id="work"><div class="wrap">
+  <p class="eyebrow">WHAT I DO &mdash; SIX AREAS, OPEN ANY FOR THE EVIDENCE</p>
+
+  <div class="caps">
+    <details class="cap" id="cap-ai">
+      <summary>
+        <span class="capnum">01<b>AI ENGINEERING</b></span>
+        <h3 class="captitle">Building language&#8209;model systems, and knowing when they are lying.</h3>
+        <span class="capsum">Evaluation first. Generating fluent text is the easy half; proving it is faithful to the evidence is the half that decides whether anyone can use it.</span>
+        <span class="capmore" aria-hidden="true"></span>
+      </summary>
+      <div class="capwrap"><div class="capbody">
+        <div></div>
+        <div class="inner">
+          <p>Most of my AI work is the unglamorous part &mdash; the gate that decides whether generated output is good enough to put in front of a client, and the benchmark that says how often it is right.</p>
+          <div class="work">
+          <div><h4>The evaluation gate</h4><p>Sole designer and implementer of the pipeline every AI persona passes before it reaches a client. It searches a vector store for the ground&#8209;truth evidence behind each claim, puts the pair to an ensemble of five judges, and uses agreement between them as a confidence score. Where the judges disagree, the claim goes to a person rather than being averaged away.</p><p class="meta">Validation went from one to two days of two analysts&rsquo; time to 15&ndash;30 minutes. 300&ndash;500 claims per project, across five to eight personas.</p></div>
+          <div><h4>Knowing the number means something</h4><p>A held&#8209;out benchmark scoring persona fidelity against real answers the system had never seen, with the match criterion defined separately for each data type, and the judges themselves calibrated against a 50&#8209;pair reference set before being trusted.</p><p class="meta">88&ndash;90% alignment on held&#8209;out data.</p></div>
+          <div><h4>Multi&#8209;granularity retrieval &mdash; built and tested, not deployed</h4><p>This one is a prototype, not a shipped feature. It is a retrieval router that chooses how coarsely to chunk a document for each individual query instead of fixing one chunk size for everything: hierarchical chunking across six levels, labels generated by cosine similarity rather than by hand, and a small PyTorch network trained to predict the right granularity. Complete and working, but not integrated into the live product and not yet benchmarked against the fixed&#8209;chunk system it would replace.</p><p class="meta">~56% top&#8209;1 and ~72% top&#8209;2 granularity accuracy in testing. Adapts a published method; the decision to apply it, and the design, build and testing, are mine.</p></div>
+          <div><h4>Making the data embeddable in the first place</h4><p>Around 17,000 question&ndash;answer pairs generated from interview transcripts to train that router, and a transformation that turns tabular client data into natural language a model can actually read &mdash; including the codebook that tells it what each variable means.</p></div>
+          <div><h4>Agents measured on behaviour, not satisfaction</h4><p>Co&#8209;built and evaluated three conversational agents with around 300 real users, measuring pre/post change in intention rather than whether people enjoyed the conversation.</p></div>
+          </div>
+        </div>
+      </div></div>
+    </details>
+    <details class="cap" id="cap-stats">
+      <summary>
+        <span class="capnum">02<b>STATISTICS AND EXPERIMENTS</b></span>
+        <h3 class="captitle">Designing studies that can actually answer the question.</h3>
+        <span class="capsum">Randomised trials, mediation analysis, and the part afterwards where a result has to become a decision somebody acts on.</span>
+        <span class="capmore" aria-hidden="true"></span>
+      </summary>
+      <div class="capwrap"><div class="capbody">
+        <div></div>
+        <div class="inner">
+          <p>An experiment is only worth running if its result would change what you do. Most of my statistical work is in that design step, and in the translation back out to the people who have to act on it.</p>
+          <div class="work">
+          <div><h4>NHS lung health check invitations</h4><p>First author on a five&#8209;arm randomised experiment testing how the wording of an invitation letter affects whether people attend an NHS Targeted Lung Health Check. I ran the full analytical pipeline and translated the findings for clinical and policy stakeholders.</p><p class="meta">n&nbsp;=&nbsp;3,274. Under review at Nature Communications; preprint on medRxiv.</p></div>
+          <div><h4>Which patients respond to which doctors</h4><p>A randomised experiment for a pharmaceutical company testing three communication styles across four patient types in two markets. One of two analysts on the project; I led the counterfactual mediation analysis &mdash; whether health literacy, emotion and trust in the doctor carry the effect &mdash; and presented the headline results to the client.</p><p class="meta">~60,000 participants screened, ~6,000 analysed, five research questions. The findings are the client&rsquo;s and are not disclosed here.</p></div>
+          <div><h4>The methods underneath</h4><p>Logistic and covariate&#8209;adjusted regression, counterfactual mediation, mixed&#8209;effects models, bootstrapping, difference&#8209;in&#8209;differences and switchback designs, structural equation modelling, and exploratory and confirmatory factor analysis.</p></div>
+          </div>
+        </div>
+      </div></div>
+    </details>
+    <details class="cap" id="cap-ml">
+      <summary>
+        <span class="capnum">03<b>MACHINE LEARNING</b></span>
+        <h3 class="captitle">Finding the structure in data that does not line up.</h3>
+        <span class="capsum">Clustering, prediction and feature selection on multi&#8209;source data that nobody designed to be joined together.</span>
+        <span class="capmore" aria-hidden="true"></span>
+      </summary>
+      <div class="capwrap"><div class="capbody">
+        <div></div>
+        <div class="inner">
+          <p>Real datasets rarely arrive in one shape. A lot of the difficulty is upstream of the model: deciding what can legitimately be compared before anything is clustered or predicted.</p>
+          <div class="work">
+          <div><h4>The segmentation engine behind the personas</h4><p>Built the unsupervised pipeline that turns raw respondent data into the segments a product is built around. Respondents come from different sources answering similar but not identical questionnaires, so it reduces across sources with PCA first, derives segments with UMAP and HDBSCAN, and uses random forest for feature importance within and across datasets.</p></div>
+          <div><h4>Validating a model somebody else built</h4><p>Led the analysis validating and extending a client&rsquo;s patient segmentation model for a population it had not been built on &mdash; linear discriminant analysis, confusion matrices, permutation tests. The client adopted the revised tool.</p></div>
+          <div><h4>Prediction, compared honestly</h4><p>Research lead on an AI&#8209;powered psychometric prediction tool, comparing XGBoost, random forest, elastic net, a PyTorch neural network and plain regression on large psychometric datasets, rather than assuming the most complex model wins. Variable&#8209;importance methods then steered the product toward a cheaper instrument.</p></div>
+          <div><h4>Reinforcement learning &mdash; built, not shipped</h4><p>A recommender using a multi&#8209;armed bandit with Thompson sampling to personalise behavioural interventions, alongside causal discovery in R to learn Bayesian graphs from timestamped activity data. The engagement ended before it was deployed.</p></div>
+          </div>
+        </div>
+      </div></div>
+    </details>
+    <details class="cap" id="cap-behsci">
+      <summary>
+        <span class="capnum">04<b>BEHAVIOURAL SCIENCE</b></span>
+        <h3 class="captitle">Designing for what people actually do.</h3>
+        <span class="capsum">The training underneath the modelling. It shows up as a constraint on the design, not as a coat of paint on the end.</span>
+        <span class="capmore" aria-hidden="true"></span>
+      </summary>
+      <div class="capwrap"><div class="capbody">
+        <div></div>
+        <div class="inner">
+          <p>Behavioural science is why I tend to ask what carried an effect rather than only whether there was one, and why I would rather measure a change in behaviour than a satisfaction score.</p>
+          <div class="work">
+          <div><h4>Where it shows up in the work</h4><p>The NHS trial is a behavioural intervention &mdash; the thing being manipulated is the wording. The conversational agents were judged on whether intention moved, not on whether users liked them. Mediation analysis asks the behavioural question directly: not whether it worked, but what carried it.</p></div>
+          <div><h4>An AI&#8209;adoption diagnostic &mdash; at design stage</h4><p>Leading the design of a diagnostic that segments employees by where they are on the AI adoption journey and which barriers are holding them back, so an organisation can target interventions instead of running the same training for everybody. Construct selection, a literature review of what predicts acceptance and use of generative AI, and a validation plan built on factor analysis and structural equation modelling.</p><p class="meta">At design stage. No results yet.</p></div>
+          <div><h4>Training</h4><p>MSc Behaviour Change at University College London, High Merit, with a dissertation carried out in collaboration with NHS England and NHS Digital.</p></div>
+          </div>
+        </div>
+      </div></div>
+    </details>
+    <details class="cap" id="cap-research">
+      <summary>
+        <span class="capnum">05<b>RESEARCH</b></span>
+        <h3 class="captitle">Work that has to survive peer review.</h3>
+        <span class="capsum">Two papers, an honorary fellowship, and the discipline that puts on everything else I build.</span>
+        <span class="capmore" aria-hidden="true"></span>
+      </summary>
+      <div class="capwrap"><div class="capbody">
+        <div></div>
+        <div class="inner">
+          <p>Research is where the standard of evidence gets set. It is the reason the evaluation work above exists in the form it does.</p>
+          <div class="work">
+          <div><h4>Tan, X. et&nbsp;al. &mdash; under review</h4><p>Behaviourally&#8209;informed invitation messaging and attendance at the NHS Targeted Lung Health Check: a randomised experimental study. First author.</p><p class="meta">Nature Communications, under review. Preprint on medRxiv.</p></div>
+          <div><h4>Harvey, N. &amp; Tan, X. &mdash; in preparation</h4><p>Ethical compromise, valuing life, and the Fechner&rsquo;s Law. Second author; I led the regression, mediation analysis and visualisation for the experimental study of moral reasoning behind it.</p><p class="meta">Cognition, in preparation. SPUDM 2025, scheduled speaker.</p></div>
+          <div><h4>Honorary Research Fellow, UCL</h4><p>Department of Experimental Psychology, since December 2023.</p><p class="meta">UCL Centre for Behaviour Change Healthcare Conference 2025, Lisbon &mdash; presenter on the lung health check project.</p></div>
+          </div>
+        </div>
+      </div></div>
+    </details>
+    <details class="cap" id="cap-consulting">
+      <summary>
+        <span class="capnum">06<b>CONSULTING</b></span>
+        <h3 class="captitle">Explaining a model to the people who have to act on it.</h3>
+        <span class="capsum">Architecture advice, client presentations, and turning repeated manual work into tooling the rest of the team can use.</span>
+        <span class="capmore" aria-hidden="true"></span>
+      </summary>
+      <div class="capwrap"><div class="capbody">
+        <div></div>
+        <div class="inner">
+          <p>A model nobody trusts does not get used, and work that only one person can run is not an asset. Both of those are consulting problems rather than technical ones.</p>
+          <div class="work">
+          <div><h4>Architecture advice</h4><p>Advised a client&rsquo;s leadership on the end&#8209;to&#8209;end architecture of an AI&#8209;agent system &mdash; data flows, the SQL and vector&#8209;database backend, retrieval, and how several agents would collaborate &mdash; with a delivery roadmap and training workshops.</p></div>
+          <div><h4>Making the work reusable</h4><p>Productised repeated manual work &mdash; literature review, question&ndash;answer generation, labelling &mdash; into documented, version&#8209;controlled pipelines the team can run without me, and led internal upskilling in agentic AI tooling.</p></div>
+          <div><h4>Reporting that runs itself</h4><p>Built a scheduled Microsoft Fabric pipeline &mdash; Python steps and Power Query over MySQL &mdash; refreshing eight times a day behind client&#8209;facing Power BI reporting, and co&#8209;presented it with the CEO. Introduced version&#8209;controlled collaboration for the team and wrote the deployment and reproducibility documentation.</p></div>
+          </div>
+        </div>
+      </div></div>
+    </details>
+  </div>
+</div></section>
+
+<section id="how" class="snapsec"><div class="wrap">
+  <p class="eyebrow">HOW I WORK</p>
+  <ul class="practice">
+    <li>Build it, then try to break it.</li>
+    <li>The shape of the data decides what the model can think.</li>
+    <li>Find the question the client hasn&rsquo;t asked yet.</li>
+  </ul>
+</div></section>
+
+<section id="background" class="snapsec"><div class="wrap">
+  <p class="eyebrow">BACKGROUND</p>
+  <p class="whisper">Where the work has been done.</p>
+  <dl class="creds">
+    <div class="crow"><dt>2025 &mdash; NOW</dt><dd>Data Scientist, CogCo
+      <span>Behavioural science consultancy, London.</span></dd></div>
+    <div class="crow"><dt>2025</dt><dd>Behavioural AI Consultant, BetterPoints <em>(freelance)</em>
+      <span>Digital health and physical activity platform, London.</span></dd></div>
+    <div class="crow"><dt>2024 &mdash; 2025</dt><dd>Research &amp; Data Scientist, Organisational Development Research
+      <span>HR and psychometric analytics, London.</span></dd></div>
+    <div class="crow"><dt>2023 &mdash; NOW</dt><dd>Honorary Research Fellow, UCL
+      <span>Department of Experimental Psychology.</span></dd></div>
+    <div class="crow"><dt>2023 &mdash; 2024</dt><dd>MSc Behaviour Change, University College London
+      <span>High Merit. Dissertation in collaboration with NHS England and NHS Digital.</span></dd></div>
+    <div class="crow"><dt>2020 &mdash; 2023</dt><dd>BSc Psychology, University of Warwick
+      <span>First Class Honours.</span></dd></div>
+  </dl>
+</div></section>
+
+<section id="contact" class="contact snapsec"><div class="wrap">
+  <p class="eyebrow">CONTACT</p>
+  <p class="whisper">Open to data science and applied AI roles.</p>
+  <div class="clinks">
+    <a href="mailto:xiaozhou.t@outlook.com">xiaozhou.t@outlook.com</a>
+    <a href="https://www.linkedin.com/in/xiaozhou-tan" rel="me noopener">LinkedIn</a>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <p>London, United Kingdom</p>
+  <p>Built from scratch &mdash; WebGL field, no framework.</p>
+</div></footer>
+
+</div><!-- /.page -->
+
+<div class="dirs" role="group" aria-label="Scroll direction (temporary)">
+  <b>SCROLL</b>
+  <button type="button" data-dir="a" aria-pressed="true">A · FIELD</button>
+  <button type="button" data-dir="b" aria-pressed="false">B · BREATHES</button>
+  <button type="button" data-dir="c" aria-pressed="false">C · TYPE</button>
+</div>
+
+<div class="dirs trans" role="group" aria-label="Section transition (temporary)">
+  <b>HANDOFF</b>
+  <button type="button" data-trans="t1" aria-pressed="true">T1 · CARRY</button>
+  <button type="button" data-trans="t2" aria-pressed="false">T2 · APERTURE</button>
+</div>
+
+<div class="glerr" id="glerr"><b>The background field did not start.</b>
+<span id="glerrmsg"></span><pre id="glerrlog"></pre></div>
+
+<script>
+var VERT =
+  'attribute vec2 a;\n' +
+  'void main(){ gl_Position = vec4(a, 0.0, 1.0); }\n';
+
+var FRAG = [
+'precision highp float;',
+'uniform vec2  u_res;',
+'uniform float u_time;',   /* driven by dt * rate from Seq/Motion — untouched */
+'uniform vec3  u_sphere;', /* xy centre (x is aspect-scaled), z radius — driven by the intro */
+'uniform float u_zoom;',
+'uniform float u_warp;',
+'uniform float u_cover;',
+'uniform float u_span;',
+'uniform float u_rim;',
+'uniform float u_edge;',
+'uniform float u_occl;',
+'uniform float u_family;',
+'uniform float u_grain;',
+'uniform float u_dpr;',
+
+'float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }',
+
+'float noise(vec2 p){',
+'  vec2 i = floor(p), f = fract(p);',
+'  f = f * f * (3.0 - 2.0 * f);',
+'  float a = hash(i);',
+'  float b = hash(i + vec2(1.0, 0.0));',
+'  float c = hash(i + vec2(0.0, 1.0));',
+'  float d = hash(i + vec2(1.0, 1.0));',
+'  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);',
+'}',
+
+/* five octaves. More reads as marbled ink rather than backlit oil. */
+'float fbm(vec2 p){',
+'  float s = 0.0, a = 0.5;',
+'  mat2 m = mat2(0.8, 0.6, -0.6, 0.8);',
+'  for(int i = 0; i < 5; i++){ s += a * noise(p); p = m * p * 2.03; a *= 0.5; }',
+'  return s;',
+'}',
+
+'void main(){',
+'  vec2 frag = gl_FragCoord.xy;',
+'  vec2 uv = frag / u_res;',
+'  float asp = u_res.x / u_res.y;',
+'  vec2 p = vec2((uv.x - 0.5) * asp, uv.y - 0.5);',
+'  float t = u_time;',
+
+/* one circle, larger than the viewport, off to the upper right */
+'  vec2 cc = vec2(u_sphere.x * asp, u_sphere.y);',
+'  float rad = u_sphere.z;',
+'  float d = length(p - cc) - rad;',
+'  float inside = smoothstep(0.06, -0.06, d);',
+
+/* low base frequency: the masses are viewport-scale, and the field is
+   compressed inside the circle so it reads as an occluding mass */
+'  vec2 q = p * (1.25 + inside * 0.55) * u_zoom;',
+
+/* two rounds of domain warp — one looks like cloud, three like a fluid sim */
+'  vec2 w1 = vec2(fbm(q * 1.6 + vec2(0.0, t * 0.07)),',
+'                 fbm(q * 1.6 + vec2(4.7, 1.3) - t * 0.055));',
+'  vec2 w2 = vec2(fbm(q * 2.1 + 2.4 * u_warp * w1 + vec2(1.7, 9.2) + t * 0.045),',
+'                 fbm(q * 2.1 + 2.4 * u_warp * w1 + vec2(8.3, 2.8) - t * 0.038));',
+'  float f = fbm(q * 2.4 + 2.9 * u_warp * w2);',
+'  float ribbon = fbm(q * 0.9 + 1.6 * w2 + vec2(t * 0.02, -t * 0.017));',
+
+/* two families only, each a narrow two-stop ramp. Nothing reaches white:
+   the brightest value available anywhere is #d8b075. */
+'  float mixAmt = smoothstep(0.32 - u_family, 0.72 - u_family, ribbon * 0.75 + f * 0.45);',
+'  float lum = smoothstep(0.18, 0.92, f * 0.85 + w2.y * 0.5);',
+'  vec3 teal  = mix(vec3(0.118, 0.165, 0.141), vec3(0.353, 0.420, 0.376), pow(lum, 1.25));',
+'  vec3 amber = mix(vec3(0.776, 0.549, 0.227), vec3(0.847, 0.690, 0.459), pow(lum, 1.60));',
+'  vec3 col = mix(teal, amber, mixAmt);',
+
+/* energy envelope: colour sits in pools, most of the frame is near-black,
+   and inside the circle is darker rather than brighter */
+'  float pool = smoothstep(u_cover, u_span, pow(lum, 1.5) * (0.55 + 0.75 * mixAmt));',
+'  pool *= mix(1.0, u_occl, inside);',
+'  col *= pool;',
+
+/* the rim is light, not a stroke: two exponential falloffs, tight and wide,
+   modulated by the field so it varies along its length and dies where the
+   field is dark */
+'  float rim = exp(-abs(d) * 190.0) * 0.85 + exp(-abs(d) * 42.0) * 0.22;',
+'  float rimMod = 0.35 + 0.9 * smoothstep(0.1, 0.8, fbm(q * 1.4 + w2 * 1.5 + vec2(t * 0.03, 0.0)));',
+'  col += vec3(0.90, 0.76, 0.55) * rim * rimMod * u_rim;',
+
+'  col = vec3(0.031) + col;',
+
+/* legibility darkening lives in the field, so no overlay element is needed */
+'  col *= 1.0 - 0.42 * u_edge * smoothstep(0.16, 0.0, uv.y);',
+'  col *= 1.0 - 0.22 * u_edge * smoothstep(0.9, 1.0, uv.y);',
+'  col *= 0.88 + 0.12 * smoothstep(1.25, 0.25, length(p));',
+
+/* heavy fine grain at device-pixel scale, boosted in the lit areas */
+'  vec2 gp = frag * (1.0 / max(u_dpr, 0.75));',
+'  float g1 = hash(gp + fract(t * 7.3) * 71.3);',
+'  float g2 = hash(gp * 1.7 + 13.1 + fract(t * 5.1) * 43.7);',
+'  col += ((g1 * 0.65 + g2 * 0.35) - 0.5) * u_grain * (0.55 + 1.15 * smoothstep(0.0, 0.5, length(col)));',
+'  col += (hash(gp * 0.37 + fract(t * 2.1) * 11.0) - 0.5) * u_grain * 0.35;',
+
+'  vec3 PEAK = vec3(0.847, 0.690, 0.459);',
+'  vec3 k = max(col, 0.0) / PEAK;',
+'  col = PEAK * k * pow(1.0 + k*k*k*k, vec3(-0.25));',
+'  gl_FragColor = vec4(col, 1.0);',
+'}'
+].join('\n');
+
+var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+var DEFAULTS = {
+  /* field — from fluid-field.frag */
+  zoom:1.00, warp:1.00, cover:0.00, span:0.95, rim:0.95, edge:1.00,
+  occl:0.18, family:0.00, grain:0.085,
+  /* circle: larger than the viewport, upper right. x is aspect-scaled. */
+  sx:0.42, sy:0.46, sr:0.95,
+  /* motion */
+  speed:0.300, ceil:8.0, damp:0.115,
+  /* the held intro sequence */
+  hold:1, stagelen:300, spinup:0.33, speedmid:3.0, syend:1.70
+};
+var P = {};
+for(var k in DEFAULTS) P[k] = DEFAULTS[k];
+
+/* pixel budget rather than a raw DPR cap: on a wide retina display, full
+   DPR is ~7M pixels a frame, which no amount of octave-trimming rescues */
+var PIXEL_BUDGET = 2.8e6;
+
+function fail(msg, log){
+  document.getElementById('glerrmsg').textContent = msg;
+  document.getElementById('glerrlog').textContent = log || '';
+  document.getElementById('glerr').classList.add('on');
+  return false;
+}
+
+/* ---------------------------------------------------------------------
+   Scroll velocity modulates the rate the field advances. Position is
+   never mapped to progress, so the field keeps moving when the page is
+   still and the scrollbar behaves exactly as the reader expects.
+   --------------------------------------------------------------------- */
+var Motion = (function(){
+  var lastY = window.scrollY || window.pageYOffset || 0;
+  var accum = 0, velocity = 0, stamp = -1;
+  window.addEventListener('scroll', function(){
+    var y = window.scrollY || window.pageYOffset || 0;
+    accum += y - lastY;
+    lastY = y;
+  }, {passive:true});
+  return {
+    update: function(now, dt){
+      if(now === stamp) return velocity;
+      stamp = now;
+      var target = 0;
+      if(dt > 0){
+        target = (accum / dt) / 840;
+        target = Math.max(-P.ceil, Math.min(P.ceil, target));
+      }
+      accum = 0;
+      var k = 1 - Math.pow(1 - P.damp, dt * 60);   /* same decay at 60 and 120Hz */
+      velocity += (target - velocity) * k;
+      if(Math.abs(velocity) < 0.0005) velocity = 0;
+      return velocity;
+    }
+  };
+})();
+
+/* ---------------------------------------------------------------------
+   The held intro.
+
+   While held, the page does not scroll. Scroll input drives a 0..1 stage
+   instead, in two phases:
+
+     stage 0 .. spinup      rate climbs   speed -> speedmid
+     stage spinup .. 1      rate climbs   speedmid -> ceil, and the sphere
+                            centre rises from sy to syend, off the frame
+
+   When the stage completes the page is released and scrolls normally,
+   with the sequence's final rate handed over as decaying momentum rather
+   than dropped. Scrolling up at the very top re-enters and reverses it.
+
+   This IS scroll hijacking, so there are three ways out: completing it,
+   Escape, and Tab. It is disabled outright under prefers-reduced-motion,
+   where a locked page with no way to advance would be a trap.
+   --------------------------------------------------------------------- */
+var Seq = (function(){
+  var stage = 0, target = 0, locked = false, carry = 0, released = false;
+  var root = document.documentElement;
+
+  function held(){ return P.hold >= 0.5 && !REDUCED; }
+  function atTop(){ return (window.scrollY || window.pageYOffset || 0) <= 0; }
+
+  function lock(){
+    if(locked) return;
+    locked = true;
+    root.classList.add('locked');
+    window.scrollTo(0, 0);
+  }
+  function unlock(){
+    if(!locked) return;
+    locked = false;
+    root.classList.remove('locked');
+  }
+
+  function rateAt(x){
+    if(x <= P.spinup) return P.speed + (P.speedmid - P.speed) * (x / Math.max(0.01, P.spinup));
+    var u = (x - P.spinup) / Math.max(0.01, 1 - P.spinup);
+    return P.speedmid + (P.ceil - P.speedmid) * u;
+  }
+  function syAt(x){
+    if(x <= P.spinup) return P.sy;
+    var u = (x - P.spinup) / Math.max(0.01, 1 - P.spinup);
+    return P.sy + (P.syend - P.sy) * u;
+  }
+
+  return {
+    locked: function(){ return locked; },
+
+    /* returns true when the caller should preventDefault */
+    push: function(delta){
+      if(!held()) return false;
+      if(!locked){
+        if(delta < 0 && atTop()){ carry = 0; released = false; lock(); }
+        else return false;
+      }
+      target = Math.max(0, Math.min(1, target + delta / Math.max(200, P.stagelen)));
+      return true;
+    },
+
+    skip: function(){
+      target = 1; stage = 1; carry = 0; released = true; unlock();
+    },
+
+    reset: function(){
+      stage = 0; target = 0; carry = 0; released = false;
+      if(held()) lock(); else unlock();
+    },
+
+    step: function(now, dt){
+      if(!held()){
+        unlock();
+        return {rate: P.speed * (1 + Motion.update(now, dt)), sy: P.sy, stage: 0};
+      }
+      var k = 1 - Math.pow(1 - P.damp, dt * 60);
+      stage += (target - stage) * k;
+      if(Math.abs(target - stage) < 0.0008) stage = target;
+
+      if(locked){
+        if(target >= 1 && stage > 0.995){
+          carry = rateAt(1) - P.speed;      /* hand the momentum over, do not drop it */
+          released = true;
+          unlock();
+        }
+        return {rate: rateAt(stage), sy: syAt(stage), stage: stage};
+      }
+      carry *= Math.pow(0.02, dt);          /* ~1.5s to settle */
+      return {rate: P.speed * (1 + Motion.update(now, dt)) + carry,
+              sy: released ? P.syend : P.sy, stage: stage};
+    }
+  };
+})();
+
+window.addEventListener('wheel', function(e){
+  if(Seq.push(e.deltaY)) e.preventDefault();
+}, {passive:false});
+
+var touchY = 0;
+window.addEventListener('touchstart', function(e){
+  if(e.touches.length) touchY = e.touches[0].clientY;
+}, {passive:true});
+window.addEventListener('touchmove', function(e){
+  if(!e.touches.length) return;
+  var y = e.touches[0].clientY, d = touchY - y;
+  touchY = y;
+  if(Seq.push(d)) e.preventDefault();
+}, {passive:false});
+
+window.addEventListener('keydown', function(e){
+  if(!Seq.locked()) return;
+  if(e.key === 'Escape' || e.key === 'Tab'){ Seq.skip(); return; }
+  var d = 0;
+  if(e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') d = P.stagelen * 0.14;
+  else if(e.key === 'ArrowUp' || e.key === 'PageUp') d = -P.stagelen * 0.14;
+  if(d !== 0 && Seq.push(d)) e.preventDefault();
+});
+
+function mountField(hero){
+  var cv = document.createElement('canvas');
+  cv.className = 'field';
+  var opts = {antialias:false, alpha:false, depth:false, stencil:false,
+              powerPreference:'high-performance'};
+  var gl = null;
+  try { gl = cv.getContext('webgl', opts) || cv.getContext('experimental-webgl', opts); }
+  catch(e){ return fail('This browser threw when asked for a WebGL context.', String(e)); }
+  if(!gl) return fail('This browser did not return a WebGL context. Hardware acceleration may be off.');
+
+  function shader(type, src, label){
+    var sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS)){
+      fail(label + ' shader failed to compile.', gl.getShaderInfoLog(sh));
+      return null;
+    }
+    return sh;
+  }
+  var vs = shader(gl.VERTEX_SHADER, VERT, 'Vertex');
+  var fs = shader(gl.FRAGMENT_SHADER, FRAG, 'Fragment');
+  if(!vs || !fs) return false;
+
+  var prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){
+    return fail('The shader program failed to link.', gl.getProgramInfoLog(prog));
+  }
+  gl.useProgram(prog);
+
+  var buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  var loc = gl.getAttribLocation(prog, 'a');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+  var U = {};
+  ['u_res','u_time','u_sphere','u_zoom','u_warp','u_cover','u_span','u_rim','u_edge','u_occl','u_family','u_grain','u_dpr']
+    .forEach(function(n){ U[n] = gl.getUniformLocation(prog, n); });
+
+  hero.insertBefore(cv, hero.firstChild);
+  hero.classList.add('gl');
+
+  var scale = 1, raf = null, prev = 0, t = 0;
+  var fpsN = 0, fpsT = 0;
+  var fpsEl = document.getElementById('fps') || {};
+  var stageEl = document.getElementById('stageout') || {};
+  var bar = document.getElementById('stagebar') || {style:{}};
+  var rsEl = document.getElementById('rs') || {};
+
+  /* measured on resize only — a getBoundingClientRect every frame forces
+     a layout, the last thing wanted beside a scroll listener */
+  var sized = false;
+  function size(){
+    var r = cv.getBoundingClientRect();
+    if(!r.width || !r.height){ sized = false; return false; }
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    scale = Math.min(dpr, Math.sqrt(PIXEL_BUDGET / (r.width * r.height)));
+    var w = Math.max(1, Math.round(r.width * scale));
+    var h = Math.max(1, Math.round(r.height * scale));
+    if(cv.width !== w || cv.height !== h){
+      cv.width = w; cv.height = h;
+      gl.viewport(0, 0, w, h);
+    }
+    gl.uniform2f(U.u_res, w, h);
+    rsEl.textContent = scale.toFixed(2) + '\u00d7';
+    sized = true;
+    return true;
+  }
+
+  function pushUniforms(sy){
+    gl.uniform3f(U.u_sphere, P.sx, sy, P.sr);
+    gl.uniform1f(U.u_zoom, P.zoom);
+    gl.uniform1f(U.u_warp, P.warp);
+    gl.uniform1f(U.u_cover, P.cover);
+    gl.uniform1f(U.u_span, P.span);
+    gl.uniform1f(U.u_rim, P.rim);
+    gl.uniform1f(U.u_edge, P.edge);
+    gl.uniform1f(U.u_occl, P.occl);
+    gl.uniform1f(U.u_family, P.family);
+    gl.uniform1f(U.u_grain, P.grain);
+    gl.uniform1f(U.u_dpr, scale);   /* grain sized against the render scale */
+  }
+
+  function frame(now){
+    raf = null;
+    if(!sized && !size()){ raf = requestAnimationFrame(frame); return; }
+
+    var dt = prev ? Math.min((now - prev) / 1000, 0.05) : 1/60;
+    prev = now;
+
+    var st = Seq.step(now, dt);
+    t += dt * st.rate;
+
+    pushUniforms(st.sy);
+    gl.uniform1f(U.u_time, t);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    bar.style.transform = 'scaleX(' + st.stage.toFixed(4) + ')';
+
+    fpsN++; fpsT += dt;
+    if(fpsT > 0.8){
+      fpsEl.textContent = Math.round(fpsN / fpsT);
+      stageEl.textContent = st.stage.toFixed(2);
+      fpsN = 0; fpsT = 0;
+    }
+    if(!REDUCED) raf = requestAnimationFrame(frame);
+  }
+
+  function remeasure(){ size(); if(REDUCED){ pushUniforms(P.sy); frame(performance.now()); } }
+  window.addEventListener('resize', remeasure);
+  if(window.ResizeObserver) new ResizeObserver(remeasure).observe(cv);
+
+  prev = 0;
+  raf = requestAnimationFrame(frame);
+  return true;
+}
+
+Seq.reset();
+mountField(document.getElementById('field'));
+
+/* =====================================================================
+   Page behaviour below the hero.
+
+   It reads the SAME velocity signal the field is driven by — Motion.update
+   is idempotent per animation frame, so calling it here returns exactly the
+   value the shader used, with no second integration and no change to the
+   hero's coupling.
+   ===================================================================== */
+(function(){
+  var scrim = document.getElementById('scrim');
+  var hero  = document.getElementById('top');
+  /* the CSS default is the no-JS safe value; this runs before first paint */
+  scrim.style.opacity = '0';
+  var body  = document.body;
+  var prev = 0;
+  function TRANS(){ return body.dataset.trans; }
+
+  /* Only a section that fits the viewport gets a snap point. "What I do" never
+     does; on a short laptop screen the denser sections stop qualifying too,
+     which is what keeps snapping from hiding content it cannot reach. */
+  var snaps = ['top','intro','how','background','contact']
+    .map(function(id){ return document.getElementById(id); })
+    .filter(Boolean);
+  function fitSnaps(){
+    var vh = window.innerHeight;
+    snaps.forEach(function(e){
+      e.classList.toggle('snap', e.getBoundingClientRect().height <= vh + 2);
+    });
+  }
+  fitSnaps();
+  window.addEventListener('resize', fitSnaps, {passive:true});
+  if(window.ResizeObserver) new ResizeObserver(fitSnaps).observe(document.body);
+
+  function tick(now){
+    var dt = prev ? Math.min((now - prev)/1000, 0.05) : 1/60;
+    prev = now;
+    var v = REDUCED ? 0 : Motion.update(now, dt);
+    var h = hero.offsetHeight || window.innerHeight;
+    var y = window.scrollY || window.pageYOffset || 0;
+    /* 0 across the hero, easing to 1 once the hero is leaving */
+    var past = Math.min(1, Math.max(0, (y - h*0.30) / (h*0.55)));
+    var dir = body.dataset.dir;
+    var base = dir === 'c' ? 0.97 : 0.80;
+    /* B: the page quiets down when it is being skimmed, opens up when you stop */
+    var extra = dir === 'b' ? Math.min(0.17, Math.abs(v) * 0.030) : 0;
+    /* C: the velocity is carried by the type instead of the field */
+    body.style.setProperty('--v', dir === 'c' ? Math.min(1, Math.abs(v)/6).toFixed(3) : '0');
+    /* signed velocity, normalised — the section transitions read this, so the
+       page moves on the same signal the shader does */
+    var vs = Math.max(-1, Math.min(1, v / 4));
+    body.style.setProperty('--vs', vs.toFixed(4));
+
+    /* T2: each snap section's own distance from settling, scaled by how fast
+       the page is moving. At rest every section reads 0 and nothing moves. */
+    var open = 0;
+    if(TRANS() === 't2'){
+      var g = Math.min(1, Math.abs(v) / 3);
+      for(var i = 0; i < snaps.length; i++){
+        var r = snaps[i].getBoundingClientRect();
+        var e = Math.min(1, Math.abs(r.top) / Math.max(1, window.innerHeight));
+        var val = e * g;
+        snaps[i].style.setProperty('--e', val.toFixed(4));
+        if(1 - e > 0.55) open = Math.max(open, (1 - e) * g);
+      }
+    }
+    /* T2: the field opens as a boundary is crossed, and only while moving */
+    var dip = TRANS() === 't2' ? Math.min(0.18, open * 0.22) : 0;
+    scrim.style.opacity = Math.max(0, past * (base + extra) - dip).toFixed(3);
+    requestAnimationFrame(tick);
+  }
+  if(!REDUCED) requestAnimationFrame(tick);
+  else scrim.style.opacity = '0.80';
+
+  document.querySelectorAll('.dirs button').forEach(function(b){
+    b.addEventListener('click', function(){
+      body.dataset.dir = b.dataset.dir;
+      document.querySelectorAll('.dirs button').forEach(function(x){
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+    });
+  });
+  document.querySelectorAll('.trans button').forEach(function(b){
+    b.addEventListener('click', function(){
+      body.dataset.trans = b.dataset.trans;
+      snaps.forEach(function(e){ e.style.removeProperty('--e'); });
+      document.querySelectorAll('.trans button').forEach(function(x){
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+    });
+  });
+})();
+
+/* ---- disclosure -----------------------------------------------------
+   Native <details>, so it works with no JavaScript at all, on touch, and
+   from the keyboard. The script only adds the height animation, and steps
+   aside entirely under prefers-reduced-motion. */
+(function(){
+  if(REDUCED || !document.body.animate) return;
+  document.querySelectorAll('.cap').forEach(function(d){
+    var sum = d.querySelector('summary');
+    var wrap = d.querySelector('.capwrap');
+    var anim = null;
+    function run(from, to, after){
+      if(anim) anim.cancel();
+      anim = wrap.animate({height:[from, to]},
+        {duration: 620, easing:'cubic-bezier(0.19,1,0.22,1)'});
+      anim.onfinish = function(){ anim = null; wrap.style.height = ''; if(after) after(); };
+    }
+    sum.addEventListener('click', function(e){
+      e.preventDefault();
+      if(d.open){
+        var h = wrap.offsetHeight + 'px';
+        run(h, '0px', function(){ d.open = false; });
+      } else {
+        d.open = true;
+        var h = wrap.offsetHeight + 'px';
+        run('0px', h);
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
+
