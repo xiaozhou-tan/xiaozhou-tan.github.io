@@ -83,8 +83,15 @@ a{color:inherit}
    reaches the edges where that type sits. Four soft washes, all in the
    page layer, so the hero's shader and scroll coupling stay untouched:
    centre, top edge, bottom edge, and the bottom-right corner where the
-   field pools brightest. Worst case after: 5.09 topbar, 5.57 label,
-   4.60 availability, 4.14 headline, 3.34 rolebar. */
+   field pools brightest.
+
+   Worst case after, over 29 samples of u_time spanning t=0..1600:
+   topbar 5.09, label 5.19, availability 4.60, headline 4.14, rolebar 3.17.
+   These are empirical, not guaranteed. The shader's tone map bounds output
+   below #d8b075 for every t, and white on that ceiling is 2.02:1 — so a
+   frame that fails AA here is admissible, just not one 29 samples found.
+   Below the hero the scrim makes the same ceiling provably safe: 6.79:1 for
+   body copy, 5.66:1 for meta, with no sampling involved. */
 .herowash{position:absolute;inset:0;z-index:0;pointer-events:none;
   background:
     radial-gradient(34% 26% at 92% 102%, rgba(0,0,0,.34), rgba(0,0,0,0) 100%),
@@ -176,10 +183,69 @@ footer{padding-block:56px 44px;border-top:1px solid var(--hair);
   font-size:11px;color:var(--faint);line-height:1.5}
 footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
 
+/* ---------- section snapping ------------------------------------------
+   `proximity`, never `mandatory`: a hard flick carries through several
+   boundaries and only settles when it comes to rest near one. scroll-snap-stop
+   stays at its default `normal` for the same reason — `always` would stop the
+   page dead at every section, which is exactly the punishment a skimming
+   recruiter must not get.
+
+   A snap point is only given to a section that FITS the viewport (JS adds
+   .snap on load and on resize). "What I do" never fits, so it has no snap
+   point and scrolls freely; snapping resumes at the next section that fits.
+   The same rule covers short laptop screens, where the denser sections stop
+   qualifying on their own rather than trapping content off-screen. */
+html{scroll-snap-type:y proximity}
+.snap{scroll-snap-align:start}
+.snapsec{min-height:100svh;display:flex;align-items:center}
+.snapsec > .wrap{width:100%}
+
+/* ---------- section transition (temporary — two options to choose from) ----
+   Both read the same velocity Motion.update() hands the shader, so the page
+   moves on the hero's signal rather than on a scroll-position progress bar.
+   Both rest at zero displacement: nothing moves unless the page is moving.
+
+   T1 CARRY    — content lags the viewport by the signed velocity and settles
+                 on the field's own decay curve. Weight, not a fade.
+   T2 APERTURE — the handoff is carried by the field: each section's own
+                 distance from settling, scaled by how fast you are going, so
+                 a drift is almost invisible and a flick opens the field. */
+body[data-trans="t1"] .snapsec > .wrap{
+  transform:translate3d(0,calc(var(--vs) * -22px),0)}
+body[data-trans="t2"] .snapsec > .wrap{
+  transform:translate3d(0,calc(var(--e,0) * 20px),0);
+  opacity:calc(1 - var(--e,0) * 0.45)}
+
+/* Viewport-height tiers, so the snap sections keep FITTING and therefore keep
+   qualifying. Background is the tallest of them; without the first tier it
+   misses the snap on any laptop under ~1250px of viewport. 96px is already the
+   floor of the section padding clamp, so tier one stays inside the type scale
+   rather than inventing a tighter one. */
+@media (max-height:1100px){
+  section{padding-block:96px}
+  .crow{padding-block:18px}
+  .creds{margin-top:48px}
+}
+@media (max-height:860px){
+  section{padding-block:48px}
+  /* the topbar is fixed and ~65px tall; at a settled snap the section's first
+     line must clear it, so the top padding has a floor the tier cannot cross */
+  .snapsec{padding-top:96px}
+  .practice li{padding-block:14px}
+  /* Background is the tallest snap section; these two lines are what keep it
+     under an 800px viewport once the topbar clearance is paid for, and so
+     keep it snapping rather than dropping to free scroll. */
+  .crow{padding-block:8px}
+  .crow dd span{margin-top:4px}
+  .creds,.practice,.caps,.clinks{margin-top:28px}
+  .eyebrow{margin-bottom:24px}
+}
+
 /* ---------- direction switcher (temporary — remove once chosen) ---------- */
 .dirs{position:fixed;left:16px;bottom:16px;z-index:50;display:flex;gap:6px;
   align-items:center;font-size:10px;letter-spacing:.1em}
-.dirs b{font-weight:400;color:var(--faint);margin-right:6px}
+.dirs.trans{bottom:52px}
+.dirs b{font-weight:400;color:var(--faint);margin-right:6px;min-width:52px}
 .dirs button{background:transparent;color:var(--quiet);border:1px solid var(--hair);
   border-radius:75px;padding:7px 14px;font:400 10px/1 var(--font);
   letter-spacing:.1em;cursor:pointer;transition:color .5s var(--ease),border-color .5s var(--ease)}
@@ -220,12 +286,13 @@ footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
 }
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
-  html{scroll-behavior:auto}
+  html{scroll-behavior:auto;scroll-snap-type:none}
   .captitle{letter-spacing:-.012em}
+  .snapsec > .wrap{transform:none!important;opacity:1!important}
 }
 </style>
 </head>
-<body data-dir="a">
+<body data-dir="a" data-trans="t1">
 
 <a class="skip" href="#work">Skip to what I do</a>
 <div class="fieldlayer" id="field"><div class="wash"></div></div>
@@ -256,7 +323,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
   <div class="stagebar" id="stagebar"></div>
 </div>
 
-<section id="intro"><div class="wrap">
+<section id="intro" class="snapsec"><div class="wrap">
   <p class="whisper">I build systems that read people, and the tests that say whether they worked.</p>
   <p class="lede">Trained as a behavioural scientist, working as an engineer. Most of what I do
   sits in the gap between a model that runs and a model anyone should act on &mdash; retrieval and
@@ -389,7 +456,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
   </div>
 </div></section>
 
-<section id="how"><div class="wrap">
+<section id="how" class="snapsec"><div class="wrap">
   <p class="eyebrow">HOW I WORK</p>
   <ul class="practice">
     <li>Build it, then try to break it.</li>
@@ -398,7 +465,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
   </ul>
 </div></section>
 
-<section id="background"><div class="wrap">
+<section id="background" class="snapsec"><div class="wrap">
   <p class="eyebrow">BACKGROUND</p>
   <p class="whisper">Where the work has been done.</p>
   <dl class="creds">
@@ -417,7 +484,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
   </dl>
 </div></section>
 
-<section id="contact" class="contact"><div class="wrap">
+<section id="contact" class="contact snapsec"><div class="wrap">
   <p class="eyebrow">CONTACT</p>
   <p class="whisper">Open to data science and applied AI roles.</p>
   <div class="clinks">
@@ -438,6 +505,12 @@ footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
   <button type="button" data-dir="a" aria-pressed="true">A · FIELD</button>
   <button type="button" data-dir="b" aria-pressed="false">B · BREATHES</button>
   <button type="button" data-dir="c" aria-pressed="false">C · TYPE</button>
+</div>
+
+<div class="dirs trans" role="group" aria-label="Section transition (temporary)">
+  <b>HANDOFF</b>
+  <button type="button" data-trans="t1" aria-pressed="true">T1 · CARRY</button>
+  <button type="button" data-trans="t2" aria-pressed="false">T2 · APERTURE</button>
 </div>
 
 <div class="glerr" id="glerr"><b>The background field did not start.</b>
@@ -868,6 +941,23 @@ mountField(document.getElementById('field'));
   scrim.style.opacity = '0';
   var body  = document.body;
   var prev = 0;
+  function TRANS(){ return body.dataset.trans; }
+
+  /* Only a section that fits the viewport gets a snap point. "What I do" never
+     does; on a short laptop screen the denser sections stop qualifying too,
+     which is what keeps snapping from hiding content it cannot reach. */
+  var snaps = ['top','intro','how','background','contact']
+    .map(function(id){ return document.getElementById(id); })
+    .filter(Boolean);
+  function fitSnaps(){
+    var vh = window.innerHeight;
+    snaps.forEach(function(e){
+      e.classList.toggle('snap', e.getBoundingClientRect().height <= vh + 2);
+    });
+  }
+  fitSnaps();
+  window.addEventListener('resize', fitSnaps, {passive:true});
+  if(window.ResizeObserver) new ResizeObserver(fitSnaps).observe(document.body);
 
   function tick(now){
     var dt = prev ? Math.min((now - prev)/1000, 0.05) : 1/60;
@@ -881,9 +971,29 @@ mountField(document.getElementById('field'));
     var base = dir === 'c' ? 0.97 : 0.80;
     /* B: the page quiets down when it is being skimmed, opens up when you stop */
     var extra = dir === 'b' ? Math.min(0.17, Math.abs(v) * 0.030) : 0;
-    scrim.style.opacity = (past * (base + extra)).toFixed(3);
     /* C: the velocity is carried by the type instead of the field */
     body.style.setProperty('--v', dir === 'c' ? Math.min(1, Math.abs(v)/6).toFixed(3) : '0');
+    /* signed velocity, normalised — the section transitions read this, so the
+       page moves on the same signal the shader does */
+    var vs = Math.max(-1, Math.min(1, v / 4));
+    body.style.setProperty('--vs', vs.toFixed(4));
+
+    /* T2: each snap section's own distance from settling, scaled by how fast
+       the page is moving. At rest every section reads 0 and nothing moves. */
+    var open = 0;
+    if(TRANS() === 't2'){
+      var g = Math.min(1, Math.abs(v) / 3);
+      for(var i = 0; i < snaps.length; i++){
+        var r = snaps[i].getBoundingClientRect();
+        var e = Math.min(1, Math.abs(r.top) / Math.max(1, window.innerHeight));
+        var val = e * g;
+        snaps[i].style.setProperty('--e', val.toFixed(4));
+        if(1 - e > 0.55) open = Math.max(open, (1 - e) * g);
+      }
+    }
+    /* T2: the field opens as a boundary is crossed, and only while moving */
+    var dip = TRANS() === 't2' ? Math.min(0.18, open * 0.22) : 0;
+    scrim.style.opacity = Math.max(0, past * (base + extra) - dip).toFixed(3);
     requestAnimationFrame(tick);
   }
   if(!REDUCED) requestAnimationFrame(tick);
@@ -893,6 +1003,15 @@ mountField(document.getElementById('field'));
     b.addEventListener('click', function(){
       body.dataset.dir = b.dataset.dir;
       document.querySelectorAll('.dirs button').forEach(function(x){
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+    });
+  });
+  document.querySelectorAll('.trans button').forEach(function(b){
+    b.addEventListener('click', function(){
+      body.dataset.trans = b.dataset.trans;
+      snaps.forEach(function(e){ e.style.removeProperty('--e'); });
+      document.querySelectorAll('.trans button').forEach(function(x){
         x.setAttribute('aria-pressed', String(x === b));
       });
     });
