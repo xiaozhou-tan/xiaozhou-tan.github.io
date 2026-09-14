@@ -76,29 +76,75 @@ img,canvas{display:block;max-width:100%}
 .skip:focus{left:16px;top:16px}
 :focus-visible{outline:2px solid var(--saffron);outline-offset:4px;border-radius:2px}
 
-/* ---------- the constellation, fixed behind everything ---------- */
+/* ---------- the particle field, fixed behind everything ---------- */
+/* One layer for the whole page: it never remounts, and a particle keeps its
+   colour and seed from hero to footer, so the field reads as one swarm
+   rearranging rather than six clouds crossfading. */
 .field{position:fixed;inset:0;z-index:0;background:var(--void)}
 .field canvas{position:absolute;inset:0;width:100%;height:100%}
-/* no-WebGL fallback: a still, very quiet nebula so the page is never bare */
+/* no-WebGL2 fallback, first choice: the real shapes, as the stills written by
+   `npm run frames`. A visitor without a GL context sees the sequence, not a
+   substitute for it. */
+.field .plate{position:absolute;inset:0;opacity:0;
+  background-size:cover;background-position:center;transition:opacity .45s ease}
+/* last resort, for a plate that fails to load: a still, very quiet nebula so
+   the page is never bare */
 .field .fallback{position:absolute;inset:-10%;filter:blur(70px);opacity:.5;
   background:
     radial-gradient(38% 46% at 62% 34%, rgba(128,82,255,.55), transparent 70%),
     radial-gradient(32% 38% at 74% 52%, rgba(255,184,41,.30), transparent 70%),
     radial-gradient(30% 40% at 52% 60%, rgba(21,132,110,.35), transparent 72%)}
-.field.gl .fallback{display:none}
-/* The constellation is the hero's visual. Behind reading copy the design calls
-   for ambient density only, so a scrim ramps up as the hero leaves. Without it
-   18px weight-200 body text sits directly on lit particles and is unreadable. */
-.scrim{position:fixed;inset:0;z-index:1;pointer-events:none;
-  background:var(--void);opacity:0;will-change:opacity}
+.field.gl .fallback,.field.gl .plate{display:none}
+
+/* ---------- the scrim ----------
+   The field is framed so the copy's half of the viewport is empty; the scrim
+   is the insurance behind that, and it darkens only the side the copy is on,
+   so protecting the text does not also dim the shape. The uniform layer is
+   for the scatter stage, where the copy sits inside the field by design, and
+   for the stacked layout below 900px where there is no free half at all.
+   Re-measured for the particle field (the fluid field's numbers do not carry
+   over — this one is darker but its lit glyphs are far brighter). Method, in
+   tools/frames.mjs: readPixels the canvas under every visible text box at 41
+   scroll positions across the whole page, composite the brightest 5% of that
+   box through the scrim and the topbar gradient in sRGB, then take the worst
+   ratio each element reaches anywhere on the page.
+
+     display 21.00   brand 18.62   h-lg 18.15   h-xs 18.08   h 17.62
+     evid h3 17.09   body 9.50    nav links 7.11   role dt 7.46
+     contact link 6.94   metric 6.15   evid p 6.05   herometa 4.65
+     label 4.56      CV button 4.60
+
+   Everything clears AA at 4.5:1, and the two that come closest do so during
+   a handover, not at rest: `label` and `herometa` are 14px amber and ash, and
+   a morph is the one moment copy and field share the whole frame. EASE is set
+   at the largest value those two survive — see the Scrim comment. At a
+   settled stage nothing is below 6:1.
+
+   The CV button is white on iris and never touches the field; 4.60:1 is the
+   palette's own figure from DESIGN.md.
+
+   Mean canvas luminance under a copy block at a settled stage — the "the
+   shape has actually vacated this half" test — is 0.001 to 0.018, the worst
+   under the topbar, which runs over the field by design and carries its own
+   gradient, as the footer does. Numbers regenerate with `npm run frames`,
+   into docs/frames/report.json. */
+.scrim{position:fixed;inset:0;z-index:1;pointer-events:none}
+.scrim .s{position:absolute;inset:0;opacity:0;will-change:opacity}
+.scrim{--edge:46%}
+.scrim .s-l{background:linear-gradient(90deg,#000 0,#000 var(--edge),rgba(0,0,0,0) calc(var(--edge) + 15%))}
+.scrim .s-r{background:linear-gradient(270deg,#000 0,#000 var(--edge),rgba(0,0,0,0) calc(var(--edge) + 15%))}
+.scrim .s-u{background:var(--void)}
 .page{position:relative;z-index:2}
+/* ?plate=1 hides the copy for the fallback plates without changing layout,
+   so the framing the shapes were measured against is still the live one */
+.plate-only .page{visibility:hidden}
 
 /* ---------- nav ---------- */
 .nav{position:fixed;top:0;left:0;right:0;z-index:60;padding-block:calc(var(--u)*4)}
 /* the bar is fixed and the page scrolls under it; without this the 14px nav
    type collides with body copy, which is exactly what it did in v1 */
 .nav::before{content:'';position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(to bottom,rgba(0,0,0,.92) 0%,rgba(0,0,0,.72) 55%,rgba(0,0,0,0) 100%)}
+  background:linear-gradient(to bottom,rgba(0,0,0,.95) 0%,rgba(0,0,0,.88) 62%,rgba(0,0,0,0) 100%)}
 .nav .wrap{position:relative;display:flex;align-items:center;gap:calc(var(--u)*4)}
 .brand{display:flex;align-items:center;gap:calc(var(--u)*2);text-decoration:none;
   font-size:14px;font-weight:600;letter-spacing:.025em}
@@ -107,6 +153,9 @@ img,canvas{display:block;max-width:100%}
 .navlinks a{font-size:14px;font-weight:600;letter-spacing:.025em;text-transform:uppercase;
   color:var(--ash);text-decoration:none;transition:color .3s ease}
 .navlinks a:hover{color:var(--bone)}
+/* .navlinks a (0,2,1) outranks .btn (0,1,0), which left the CV pill's label
+   ash on iris — measured 1.63:1. It is a filled button; it takes bone. */
+.navlinks a.btn{color:var(--bone)}
 
 /* the single filled action on the page */
 .btn{display:inline-flex;align-items:center;gap:calc(var(--u)*1.5);
@@ -182,8 +231,42 @@ details.more[open] summary::after{content:'Less'}
 .contactlinks a{font-size:clamp(24px,3vw,42px);font-weight:400;letter-spacing:-.03em;
   text-decoration:none;width:fit-content;transition:color .3s ease}
 .contactlinks a:hover{color:var(--saffron)}
-footer{padding-block:calc(var(--u)*10) calc(var(--u)*8);font-size:14px;color:var(--ash)}
-footer .wrap{display:flex;flex-wrap:wrap;gap:calc(var(--u)*4);justify-content:space-between}
+footer{padding-block:calc(var(--u)*10) calc(var(--u)*8);font-size:14px;color:var(--ash);
+  position:relative}
+/* The field runs under the footer exactly as it runs under the topbar, and
+   the closing brain sits on this corner. Same answer as .nav::before: a local
+   cover, rather than pulling the whole right side of the scrim up and putting
+   the shape out at the one stage it is meant to close on. */
+footer::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to top,rgba(0,0,0,.95) 0%,rgba(0,0,0,.88) 62%,rgba(0,0,0,0) 100%)}
+footer .wrap{position:relative;display:flex;flex-wrap:wrap;gap:calc(var(--u)*4);justify-content:space-between}
+
+/* ---------- stage sections ----------
+   A framed stage needs the viewport to itself. These sections are shorter
+   than the screen, so two of them share it, and a shape framed to clear one
+   section's copy lands squarely on the next one's — measured at 1.1:1 on
+   amber labels before this. Giving each stage the screen is also what the
+   reference does; #work keeps its own compact rhythm, because the scatter
+   stage sits behind that copy by design. */
+.stagesec{min-height:100svh;display:flex;align-items:center}
+.stagesec>.wrap{width:100%}
+#work-head{min-height:100svh;display:flex;flex-direction:column;justify-content:center}
+@media (max-width:900px){
+  .stagesec,#work-head{min-height:auto;display:block}
+}
+
+/* ---------- framed stages ----------
+   At stages 1, 3, 4 and 5 the field owns one half of the viewport, so the
+   copy is capped and pushed to the other side. ANIMATION.md §4: without a
+   hard cap on the column a narrow viewport hands the text more than it can
+   afford, and no world-space offset can clear it. Below 900px the field
+   centres and dims instead, and this reverts to the normal stack. */
+.fr{display:block;max-width:min(560px,46vw)}
+.fr>.col-b{margin-top:calc(var(--u)*7)}
+.fr-r{margin-left:auto;margin-right:0}
+.fr-l{margin-right:auto;margin-left:0}
+.fr .role{grid-template-columns:1fr;gap:calc(var(--u)*1)}
+@media (max-width:900px){.fr{max-width:none;margin:0}}
 
 /* ---------- motion, tied to scroll velocity ---------- */
 /* content carries the velocity the constellation is driven by, so the page
@@ -214,8 +297,16 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:calc(var(--u)*4);justify-content:sp
 
 <a class="skip" href="#work">Skip to what I do</a>
 
-<div class="field" id="field"><div class="fallback"></div></div>
-<div class="scrim" id="scrim"></div>
+<div class="field" id="field" aria-hidden="true">
+  <div class="fallback"></div>
+  <div class="plate" id="plate-a"></div>
+  <div class="plate" id="plate-b"></div>
+</div>
+<div class="scrim" id="scrim" aria-hidden="true">
+  <div class="s s-l" id="scrim-l"></div>
+  <div class="s s-r" id="scrim-r"></div>
+  <div class="s s-u" id="scrim-u"></div>
+</div>
 
 <div class="page">
 
@@ -239,7 +330,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:calc(var(--u)*4);justify-content:sp
 
 <section class="hero" id="top">
   <div class="wrap two">
-    <div class="col-a stack-lg carry">
+    <div class="col-a stack-lg carry" id="hero-copy">
       <p class="label">Xiaozhou (Leo) Tan — Data scientist</p>
       <h1 class="display">I build systems that read people.</h1>
       <p class="body">And the tests that say whether they worked. Machine learning, LLM systems and
@@ -265,7 +356,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:calc(var(--u)*4);justify-content:sp
 
 <section id="work">
   <div class="wrap stack-lg">
-    <div class="two">
+    <div class="two fr fr-r" id="work-head">
       <div class="col-a stack">
         <p class="label quiet">What I do</p>
         <h2 class="h-lg">Four areas, and the evidence under each.</h2>
@@ -278,6 +369,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:calc(var(--u)*4);justify-content:sp
       </div>
     </div>
 
+    <div id="work-body">
     <!-- 01 -->
     <div class="cap two">
       <div class="col-a stack">
@@ -479,11 +571,12 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:calc(var(--u)*4);justify-content:sp
         </details>
       </div>
     </div>
+    </div>
   </div>
 </section>
 
-<section id="how">
-  <div class="wrap two">
+<section id="how" class="stagesec">
+  <div class="wrap"><div class="two fr fr-r" id="how-copy">
     <div class="col-a stack">
       <p class="label quiet">How I work</p>
       <h2 class="h-lg">Three habits that survive contact with a deadline.</h2>
@@ -495,11 +588,11 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:calc(var(--u)*4);justify-content:sp
         <li><span class="label n">03</span><span class="h-xs">Find the question the client hasn&rsquo;t asked yet.</span></li>
       </ul>
     </div>
-  </div>
+  </div></div>
 </section>
 
-<section id="background">
-  <div class="wrap two">
+<section id="background" class="stagesec">
+  <div class="wrap"><div class="two fr fr-l" id="bg-copy">
     <div class="col-a stack">
       <p class="label quiet">Background</p>
       <h2 class="h-lg">Where the work has been done.</h2>
@@ -519,11 +612,11 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:calc(var(--u)*4);justify-content:sp
           <dd><h3>Honorary Research Fellow, UCL</h3><p>Department of Experimental Psychology.</p></dd></div>
       </dl>
     </div>
-  </div>
+  </div></div>
 </section>
 
-<section id="contact">
-  <div class="wrap two">
+<section id="contact" class="stagesec">
+  <div class="wrap"><div class="two fr fr-l" id="contact-copy">
     <div class="col-a stack">
       <p class="label">Contact</p>
       <h2 class="h-lg">Open to data science and applied AI roles, and to selected consulting.</h2>
@@ -540,7 +633,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:calc(var(--u)*4);justify-content:sp
         </a>
       </div>
     </div>
-  </div>
+  </div></div>
 </section>
 
 <footer>
@@ -551,8 +644,162 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:calc(var(--u)*4);justify-content:sp
 </footer>
 
 </div><!-- /.page -->
+<!-- Shaders live inline rather than in files so the page still works
+     opened from file://, with no build step and no fetch to fail. -->
+<script type="x-shader/x-vertex" id="particles-vert">
+#version 300 es
+// particles.vert — morphing particle field, one draw call, no vertex buffers.
+// Positions come from a data texture indexed by gl_VertexID, so morphing
+// between shapes is two texelFetch calls and a mix(). The .w channel of a
+// shape texel carries that particle's weight *in that shape*: 1 on the
+// silhouette contour, ~0.2 in the interior. It is what makes a shape read
+// as a shape instead of a blob, and it is per-stage, because a particle on
+// the brain's rim is not on the head's rim.
+precision highp float;
+
+uniform sampler2D uShapes;  // uTexW x (uRowsPerStage * SHAPES), RGBA32F. xyz = position, w = rim weight
+uniform sampler2D uProps;   // uTexW x uRowsPerStage,            RGBA32F. rgb = colour, a = seed
+uniform int   uTexW;
+uniform int   uRowsPerStage;
+uniform int   uStageA;
+uniform int   uStageB;
+uniform float uT;           // 0..1 eased progress from A to B
+uniform float uTime;        // seconds; 0 under capture and reduced motion
+uniform float uYaw;
+uniform vec3  uFrame;       // xy = world offset of the shape, z = uniform scale
+uniform float uDist;
+uniform float uAspect;
+uniform float uSize;
+uniform float uMotion;      // 1 = full motion, 0 = reduced motion
+uniform float uDim;         // stage brightness; the scatter stage sits back
+
+out vec3  vColor;
+out float vRot;
+out float vSize;
+out float vAlpha;
+
+const float PI = 3.1415926;
+
+vec4 shapeAt(int id, int stage) {
+  return texelFetch(uShapes, ivec2(id % uTexW, stage * uRowsPerStage + id / uTexW), 0);
+}
+
+void main() {
+  int id = gl_VertexID;
+  vec4 A = shapeAt(id, uStageA);
+  vec4 B = shapeAt(id, uStageB);
+  vec4 props = texelFetch(uProps, ivec2(id % uTexW, id / uTexW), 0);
+  float seed = props.a;
+
+  vec3 pos  = mix(A.xyz, B.xyz, uT);
+  float rim = mix(A.w, B.w, uT);
+
+  // --- transit motion: peaks at t = 0.5, zero at both ends, so shapes
+  // --- always settle cleanly and never arrive while still swirling.
+  float burst = sin(PI * clamp(uT, 0.0, 1.0));
+
+  float ang = burst * (seed - 0.5) * 1.1 * uMotion;
+  float ca = cos(ang), sa = sin(ang);
+  pos.xz = mat2(ca, -sa, sa, ca) * pos.xz;
+
+  vec3 dir = normalize(vec3(sin(seed * 41.0), cos(seed * 17.3), sin(seed * 29.7)) + 0.001);
+  // Squashed horizontally on purpose. During a handover both copy columns are
+  // on screen — the section leaving still holds one side, the section arriving
+  // already holds the other — so up and down is the only way the swarm can
+  // disperse without crossing text. It is also what the reference does.
+  dir = normalize(vec3(dir.x * 0.34, dir.y * 1.45, dir.z * 0.34));
+  pos += dir * burst * 0.46 * (0.35 + seed) * uMotion;
+
+  // idle breathing, not gated by burst, so a held stage is never a dead frame
+  pos += 0.018 * uMotion * vec3(
+    sin(uTime * 0.70 + seed * 31.0),
+    cos(uTime * 0.61 + seed * 21.0),
+    sin(uTime * 0.53 + seed * 11.0));
+
+  // --- framing: scale, spin the shape about its own centre, THEN offset.
+  // Offsetting before the yaw would rotate the sideways push into depth,
+  // which reads as the shape drifting back to centre and growing.
+  pos *= uFrame.z;
+  float cy = cos(uYaw), sy = sin(uYaw);
+  pos.xz = mat2(cy, -sy, sy, cy) * pos.xz;
+  // the x offset is scaled by aspect to survive the projection's own /uAspect
+  pos.x += uFrame.x * uAspect;
+  pos.y += uFrame.y;
+
+  // --- hand-rolled perspective; one camera needs no matrices
+  vec3 v = pos;
+  v.z -= uDist;
+  float w = -v.z;
+  float f = 2.15;                 // focal length; JS mirrors this constant
+  float near = 0.1, far = 40.0;
+  float zc = ((far + near) / (near - far)) * v.z + (2.0 * far * near / (near - far));
+  gl_Position = vec4(v.x * f / uAspect, v.y * f, zc, w);
+
+  // wide size variance plus a handful of very large glyphs drifting loose,
+  // and a contour that carries slightly larger glyphs than the fill
+  float boost = 1.0 + 1.6 * step(0.94, seed) + 6.0 * step(0.9965, seed);
+  vSize = clamp(uSize * boost * (0.36 + 0.52 * rim) / max(w, 0.2), 1.0, 110.0);
+  gl_PointSize = vSize;
+
+  vColor = props.rgb;
+  vRot   = seed * 6.2831 + uTime * 0.12 * (seed - 0.5) * uMotion;
+  vAlpha = clamp(1.25 - 0.11 * w, 0.22, 1.0)
+         * (0.20 + 0.80 * rim)
+         * (0.78 + 0.22 * step(0.5, seed))
+         * uDim;
+}
+</script>
+<script type="x-shader/x-fragment" id="particles-frag">
+#version 300 es
+// particles.frag — every particle is a small outlined triangle glyph.
+// Below ~6px the outline stops resolving, so it cross-fades to a soft dot:
+// that is why the far field reads as dust and the near field as geometry.
+precision highp float;
+
+in vec3  vColor;
+in float vRot;
+in float vSize;
+in float vAlpha;
+
+out vec4 outColor;
+
+void main() {
+  vec2 p = gl_PointCoord * 2.0 - 1.0;
+  p.y = -p.y;
+
+  float c = cos(vRot), s = sin(vRot);
+  p = mat2(c, -s, s, c) * p;
+  p /= 0.82;                       // fit the glyph inside the sprite
+
+  // signed distance to an equilateral triangle (Inigo Quilez)
+  const float k = 1.7320508;       // sqrt(3)
+  p.x = abs(p.x) - 1.0;
+  p.y = p.y + 1.0 / k;
+  if (p.x + k * p.y > 0.0) p = vec2(p.x - k * p.y, -k * p.x - p.y) / 2.0;
+  p.x -= clamp(p.x, -2.0, 0.0);
+  float d = -length(p) * sign(p.y);
+
+  float aa     = fwidth(d) * 1.2;
+  float stroke = clamp(2.2 / max(vSize, 1.0), 0.06, 0.34);
+  float outline = 1.0 - smoothstep(stroke - aa, stroke + aa, abs(d));
+
+  float dot = 1.0 - smoothstep(0.25, 1.0, length(gl_PointCoord * 2.0 - 1.0));
+  float glyph = mix(dot, outline, smoothstep(3.5, 8.0, vSize));
+
+  float a = glyph * vAlpha;
+  if (a < 0.004) discard;
+  outColor = vec4(vColor * a, a);   // premultiplied, additive blend
+}
+</script>
 <script>
 var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var Q = new URLSearchParams(window.location.search);
+/* the previous constellation field is kept whole in hero-fluid-field.html,
+   so the two looks can be put side by side and the old one restored */
+if(Q.get('field') === 'fluid') window.location.replace('hero-fluid-field.html' + window.location.hash);
+/* capture mode freezes time and yaw so tools/frames.mjs reruns byte-identically */
+var CAPTURE = Q.get('capture') === '1';
+if(Q.get('plate') === '1') document.documentElement.classList.add('plate-only');
 
 /* ---------------------------------------------------------------------
    Scroll velocity modulates the RATE the constellation drifts and spins.
@@ -579,213 +826,1159 @@ var Motion = (function(){
   }};
 })();
 
-/* ---------------------------------------------------------------------
-   The constellation: outlined triangles, drawn as GL_LINES so the stroke
-   is genuine rather than a filled shape pretending. Points are rejection
-   sampled inside a union of ellipses and then thinned by a striation
-   pattern, which is what gives the mass its folded, organic read.
-   --------------------------------------------------------------------- */
-var VERT = [
-'attribute vec2 a_centre;','attribute vec2 a_offset;','attribute vec3 a_colour;',
-'attribute vec2 a_meta;',            /* x: seed, y: alpha */
-'uniform float u_time;','uniform vec2 u_res;','uniform float u_scale;','uniform vec2 u_shift;',
-'varying vec3 v_colour;','varying float v_alpha;',
-'void main(){',
-'  float seed = a_meta.x;',
-'  float ang = seed * 6.2831 + u_time * (0.18 + seed * 0.42);',
-'  float s = sin(ang), c = cos(ang);',
-'  vec2 off = vec2(a_offset.x * c - a_offset.y * s, a_offset.x * s + a_offset.y * c);',
-'  vec2 drift = vec2(sin(u_time * 0.21 + seed * 8.0), cos(u_time * 0.17 + seed * 6.3)) * 0.016;',
-'  float breathe = 1.0 + 0.035 * sin(u_time * 0.35 + seed * 4.0);',
-'  vec2 p = (a_centre * breathe + drift) * u_scale + u_shift + off;',
-'  float asp = u_res.x / u_res.y;',
-'  gl_Position = vec4(p.x / asp, p.y, 0.0, 1.0);',
-'  v_colour = a_colour; v_alpha = a_meta.y;',
-'}'].join('\n');
+/* =====================================================================
+   Shape generation.
 
-var FRAG = [
-'precision mediump float;','varying vec3 v_colour;','varying float v_alpha;',
-'void main(){ gl_FragColor = vec4(v_colour * v_alpha, v_alpha); }'].join('\n');
+   Every silhouette is authored once as a 2-D outline, rasterised, and
+   turned into an exact signed distance field. The field is what makes the
+   reference look reproducible: it lets a shape be sampled as a narrow,
+   dense band hugging its own edge plus a dim interior, rather than as a
+   uniform fill. A uniformly filled shape reads as a blob at every scale.
+
+   The third dimension comes from a thickness profile over that same
+   distance: zero at the edge, full at depth. Points near the edge
+   therefore project onto the silhouette and form the bright contour;
+   points deep inside carry z and read as the front and back of a shell.
+   ===================================================================== */
+
+function makeRng(seed){
+  var s = seed >>> 0;
+  return function(){ s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+/* Catmull-Rom through control points, so an outline can be authored with a
+   handful of anatomical landmarks and still resample smoothly. A 20-point
+   polygon is exactly what made the old head read as a lump. */
+function spline(pts, closed, steps){
+  var out = [], n = pts.length, i, s;
+  var last = closed ? n : n - 1;
+  for(i = 0; i < last; i++){
+    var p0 = pts[closed ? (i - 1 + n) % n : Math.max(i - 1, 0)];
+    var p1 = pts[i];
+    var p2 = pts[closed ? (i + 1) % n : Math.min(i + 1, n - 1)];
+    var p3 = pts[closed ? (i + 2) % n : Math.min(i + 2, n - 1)];
+    for(s = 0; s < steps; s++){
+      var t = s / steps, t2 = t * t, t3 = t2 * t;
+      out.push([
+        0.5 * (2*p1[0] + (-p0[0]+p2[0])*t + (2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2 + (-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+        0.5 * (2*p1[1] + (-p0[1]+p2[1])*t + (2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2 + (-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)
+      ]);
+    }
+  }
+  if(!closed) out.push(pts[n - 1]);
+  return out;
+}
+
+function inPoly(poly, x, y){
+  var c = false;
+  for(var i = 0, j = poly.length - 1; i < poly.length; j = i++){
+    var xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+    if((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+
+/* Felzenszwalb & Huttenlocher exact squared EDT — O(n) per row/column.
+   An approximate chamfer would wobble the rim band by a cell or two, which
+   is visible when the band is only 2.5% of the shape wide. */
+function edt1d(f, n, d, v, z){
+  var k = 0, q;
+  v[0] = 0; z[0] = -1e20; z[1] = 1e20;
+  for(q = 1; q < n; q++){
+    var s = ((f[q] + q*q) - (f[v[k]] + v[k]*v[k])) / (2*q - 2*v[k]);
+    while(s <= z[k]){ k--; s = ((f[q] + q*q) - (f[v[k]] + v[k]*v[k])) / (2*q - 2*v[k]); }
+    k++; v[k] = q; z[k] = s; z[k+1] = 1e20;
+  }
+  k = 0;
+  for(q = 0; q < n; q++){
+    while(z[k+1] < q) k++;
+    d[q] = (q - v[k]) * (q - v[k]) + f[v[k]];
+  }
+}
+
+function edt2d(f, w, h){
+  var m = Math.max(w, h);
+  var d = new Float64Array(m), v = new Int32Array(m), z = new Float64Array(m + 1);
+  var col = new Float64Array(h), row = new Float64Array(w), x, y;
+  for(y = 0; y < h; y++){
+    for(x = 0; x < w; x++) row[x] = f[y*w + x];
+    edt1d(row, w, d, v, z);
+    for(x = 0; x < w; x++) f[y*w + x] = d[x];
+  }
+  for(x = 0; x < w; x++){
+    for(y = 0; y < h; y++) col[y] = f[y*w + x];
+    edt1d(col, h, d, v, z);
+    for(y = 0; y < h; y++) f[y*w + x] = d[y];
+  }
+  return f;
+}
+
+/* A rasterised silhouette plus its signed distance field, in world units.
+   Polygons are scanline-filled rather than point-in-polygon tested per cell:
+   an outline splined to a few hundred points against a 300-wide grid is tens
+   of millions of crossing tests otherwise, and shape generation has to fit
+   inside first paint. */
+function Silhouette(box, res, ops){
+  var x0 = box[0], y0 = box[1], x1 = box[2], y1 = box[3];
+  var W = res, H = Math.max(8, Math.round(res * (y1 - y0) / (x1 - x0)));
+  var cw = (x1 - x0) / W, ch = (y1 - y0) / H;
+  var solid = new Uint8Array(W * H), i, x, y, k;
+  var xs = [];
+  for(k = 0; k < ops.length; k++){
+    var op = ops[k];
+    if(op.poly){
+      var poly = op.poly, n = poly.length;
+      for(y = 0; y < H; y++){
+        var wy = y0 + (y + 0.5) * ch;
+        xs.length = 0;
+        for(i = 0, j2 = n - 1; i < n; j2 = i++){
+          var yi = poly[i][1], yj = poly[j2][1];
+          if((yi > wy) !== (yj > wy)){
+            xs.push(poly[j2][0] + (poly[i][0] - poly[j2][0]) * (wy - yj) / (yi - yj));
+          }
+        }
+        if(!xs.length) continue;
+        xs.sort(function(a, b){ return a - b; });
+        for(i = 0; i + 1 < xs.length; i += 2){
+          var ca = Math.max(0, Math.ceil((xs[i] - x0) / cw - 0.5));
+          var cb = Math.min(W - 1, Math.floor((xs[i+1] - x0) / cw - 0.5));
+          for(x = ca; x <= cb; x++) solid[y*W + x] = 1;
+        }
+      }
+    } else {
+      for(y = 0; y < H; y++){
+        var wy2 = y0 + (y + 0.5) * ch;
+        for(x = 0; x < W; x++) if(op.fn(x0 + (x + 0.5) * cw, wy2)) solid[y*W + x] = 1;
+      }
+    }
+  }
+  var j2;
+  var INF = 1e18;
+  var a = new Float64Array(W * H), b = new Float64Array(W * H);
+  for(i = 0; i < W*H; i++){ a[i] = solid[i] ? INF : 0; b[i] = solid[i] ? 0 : INF; }
+  edt2d(a, W, H);   /* distance to the nearest outside cell */
+  edt2d(b, W, H);   /* distance to the nearest inside cell  */
+  var sd = new Float32Array(W * H);
+  var unit = Math.min(cw, ch);
+  var mx = 0, my = 0, mn = 0;
+  for(i = 0; i < W*H; i++){
+    sd[i] = solid[i] ? -Math.sqrt(a[i]) * unit : Math.sqrt(b[i]) * unit;
+    if(solid[i]){ mx += i % W; my += (i / W) | 0; mn++; }
+  }
+  mn = mn || 1;
+  function at(px, py){
+    var cx = Math.floor((px - x0) / cw), cy = Math.floor((py - y0) / ch);
+    if(cx < 0) cx = 0; else if(cx >= W) cx = W - 1;
+    if(cy < 0) cy = 0; else if(cy >= H) cy = H - 1;
+    return sd[cy*W + cx];
+  }
+  return { W:W, H:H, cw:cw, ch:ch, x0:x0, y0:y0, sd:sd, solid:solid, at:at,
+    cx: x0 + (mx / mn + 0.5) * cw, cy: y0 + (my / mn + 0.5) * ch,
+    /* unit outward normal, by central difference on the field */
+    grad:function(px, py){
+      var h = cw * 1.5;
+      var gx = at(px + h, py) - at(px - h, py), gy = at(px, py + h) - at(px, py - h);
+      var m = Math.sqrt(gx*gx + gy*gy);
+      return m > 1e-6 ? [gx / m, gy / m] : [0, 1];
+    }
+  };
+}
+
+/* Cells split into a narrow edge band and the interior, each drawn from
+   uniformly so the rim share is an exact fraction of the particle count
+   rather than an emergent property of a rejection test. */
+function bands(sil, band, weight, halo){
+  var rim = [], fill = [], fw = [], acc = 0, i;
+  var out = [], ow = [], oacc = 0;
+  for(i = 0; i < sil.W * sil.H; i++){
+    var d = sil.sd[i];
+    if(d <= 0.3 * band && d >= -band) rim.push(i);
+    else if(d < -band){
+      var wgt = weight ? weight(i) : 1;
+      if(wgt > 0){ fill.push(i); acc += wgt; fw.push(acc); }
+    } else if(halo && d < halo){
+      /* density falls away from the edge, so the boundary frays rather than
+         ending — the reference brain has no line you could trace */
+      var t = 1 - (d - 0.3 * band) / (halo - 0.3 * band);
+      var hw = t * t * t;
+      if(hw > 0.002){ out.push(i); oacc += hw; ow.push(oacc); }
+    }
+  }
+  return { rim:rim, fill:fill, fw:fw, total:acc, halo:out, hw:ow, htotal:oacc };
+}
+
+function pickWeighted(fw, total, r){
+  var lo = 0, hi = fw.length - 1, t = r * total;
+  while(lo < hi){ var m = (lo + hi) >> 1; if(fw[m] < t) lo = m + 1; else hi = m; }
+  return lo;
+}
+
+/* Low-frequency 3-D value noise. Colour is read from this field at the
+   particle's brain-stage position, which is why amber, violet, teal and
+   white own contiguous zones instead of arriving as confetti. */
+function noise3(seed){
+  var perm = new Uint8Array(512), i, r = makeRng(seed);
+  for(i = 0; i < 256; i++) perm[i] = i;
+  for(i = 255; i > 0; i--){ var j = (r() * (i + 1)) | 0, t = perm[i]; perm[i] = perm[j]; perm[j] = t; }
+  for(i = 0; i < 256; i++) perm[256 + i] = perm[i];
+  function grad(h, x, y, z){
+    switch(h & 7){
+      case 0: return  x + y; case 1: return -x + y; case 2: return  x - y; case 3: return -x - y;
+      case 4: return  x + z; case 5: return -x + z; case 6: return  y - z; default: return -y - z;
+    }
+  }
+  function fade(t){ return t*t*t*(t*(t*6-15)+10); }
+  return function(x, y, z){
+    var X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255;
+    x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
+    var u = fade(x), v = fade(y), w = fade(z);
+    var A = perm[X] + Y, AA = perm[A] + Z, AB = perm[A + 1] + Z;
+    var B = perm[X + 1] + Y, BA = perm[B] + Z, BB = perm[B + 1] + Z;
+    function lerp(a, b, t){ return a + (b - a) * t; }
+    return lerp(
+      lerp(lerp(grad(perm[AA], x, y, z),       grad(perm[BA], x-1, y, z), u),
+           lerp(grad(perm[AB], x, y-1, z),     grad(perm[BB], x-1, y-1, z), u), v),
+      lerp(lerp(grad(perm[AA+1], x, y, z-1),   grad(perm[BA+1], x-1, y, z-1), u),
+           lerp(grad(perm[AB+1], x, y-1, z-1), grad(perm[BB+1], x-1, y-1, z-1), u), v), w);
+  };
+}
+
+/* ---------------------------------------------------------------------
+   Outlines. Authored as landmarks, splined to a few hundred points.
+   --------------------------------------------------------------------- */
+
+/* Cortex seen from the side, frontal pole at -x. Flatter underside, a
+   cerebellum lobe at the lower rear and a short stem, which is the read
+   that separates a brain from an ellipse (reference frames 01 and 03). */
+var BRAIN_CORTEX = [
+  [-1.21, 0.04], [-1.18, 0.34], [-1.05, 0.58], [-0.83, 0.76], [-0.55, 0.86],
+  [-0.34, 0.84], [-0.16, 0.88], [ 0.08, 0.93], [ 0.36, 0.90], [ 0.60, 0.80],
+  [ 0.79, 0.66], [ 0.96, 0.44], [ 1.07, 0.18], [ 1.06,-0.09], [ 0.96,-0.30],
+  [ 0.80,-0.39], [ 0.58,-0.46], [ 0.30,-0.48], [ 0.03,-0.51], [-0.27,-0.58],
+  [-0.55,-0.64], [-0.80,-0.60], [-1.00,-0.44], [-1.14,-0.22]
+];
+/* The lateral sulcus. A brain without it is a walnut-free potato; in 03 it
+   is the bright curve running back from the frontal pole. */
+var BRAIN_SULCUS = [
+  [-0.98,-0.18], [-0.72,-0.08], [-0.40, 0.00], [-0.05, 0.02], [ 0.28,-0.02], [ 0.55,-0.12]
+];
+var BRAIN_FOLD2 = [
+  [-0.55, 0.72], [-0.40, 0.40], [-0.32, 0.10], [-0.36,-0.22]
+];
+var BRAIN_FOLD3 = [
+  [ 0.34, 0.80], [ 0.30, 0.46], [ 0.36, 0.16], [ 0.50,-0.10]
+];
+
+/* Anatomical profile facing +x: crown, forehead, brow, nose, lips, chin,
+   jaw, neck, occiput. Reference frame 05. */
+var HEAD_PROFILE = [
+  [ 0.02, 1.00], [ 0.36, 0.92], [ 0.57, 0.75], [ 0.68, 0.50], [ 0.72, 0.33],
+  [ 0.65, 0.25], [ 0.68, 0.14], [ 0.78,-0.02], [ 0.92,-0.12], [ 0.73,-0.18],
+  [ 0.69,-0.25], [ 0.77,-0.31], [ 0.71,-0.36], [ 0.77,-0.42], [ 0.66,-0.50],
+  [ 0.74,-0.61], [ 0.61,-0.75], [ 0.34,-0.87], [ 0.13,-0.93], [ 0.07,-1.12],
+  [ 0.03,-1.46], [-0.50,-1.50], [-0.56,-1.12], [-0.59,-0.80], [-0.71,-0.55],
+  [-0.87,-0.28], [-0.96, 0.05], [-0.90, 0.41], [-0.72, 0.72], [-0.42, 0.94]
+];
+var HEAD_EAR = [
+  [-0.16,-0.02], [-0.05,-0.10], [-0.06,-0.28], [-0.20,-0.34], [-0.31,-0.26], [-0.30,-0.09]
+];
+var HEAD_BROW = [
+  [ 0.60, 0.22], [ 0.44, 0.17], [ 0.28, 0.18]
+];
+var HEAD_JAW = [
+  [-0.30,-0.44], [-0.02,-0.62], [ 0.30,-0.74]
+];
+
+/* Coarse landmass outlines in (longitude, latitude). Reference frame 18:
+   continents read as denser, lighter patches, so a lat/long wireframe on
+   its own is not enough. */
+var LAND = [
+  [[-17,15],[-16,27],[-5,36],[11,37],[25,32],[34,30],[43,12],[51,11],[41,-1],[40,-16],[33,-27],[20,-35],[14,-23],[12,-6],[9,4],[0,5],[-8,4],[-13,10]],
+  [[-10,36],[-9,43],[-1,49],[4,52],[10,55],[12,58],[25,60],[30,66],[28,71],[60,72],[80,75],[105,77],[130,72],[160,70],[179,68],[179,62],[162,60],[145,55],[140,45],[130,42],[122,31],[110,21],[105,10],[100,3],[97,16],[92,22],[88,21],[80,8],[76,12],[70,22],[62,25],[57,22],[48,13],[44,12],[36,30],[28,36],[16,38],[5,38]],
+  [[-168,66],[-160,71],[-140,70],[-125,70],[-110,68],[-95,68],[-80,73],[-60,60],[-55,50],[-65,45],[-70,41],[-75,35],[-81,25],[-97,18],[-105,23],[-115,30],[-124,40],[-124,48],[-135,58],[-150,60],[-165,62]],
+  [[-97,18],[-88,16],[-83,9],[-77,8],[-79,14],[-90,20]],
+  [[-81,0],[-78,-5],[-71,-18],[-70,-30],[-73,-45],[-70,-54],[-65,-52],[-58,-38],[-48,-25],[-38,-15],[-35,-7],[-45,-1],[-51,4],[-60,8],[-70,12],[-77,8],[-79,2]],
+  [[-55,60],[-45,60],[-20,70],[-25,82],[-45,83],[-58,75]],
+  [[113,-22],[114,-33],[125,-33],[135,-35],[145,-38],[150,-35],[153,-28],[147,-20],[142,-11],[132,-12],[125,-14],[118,-18]],
+  [[95,5],[105,-6],[120,-9],[135,-8],[145,-7],[140,-3],[125,0],[110,2]]
+];
+function onLand(lon, lat){
+  if(lat < -68) return true;                       /* Antarctica */
+  for(var i = 0; i < LAND.length; i++) if(inPoly(LAND[i], lon, lat)) return true;
+  return false;
+}
+
+/* ---------------------------------------------------------------------
+   A silhouette sampled by density rather than drawn by outline.
+
+   The shape is a shell, and a shell in perspective is dense wherever its
+   surface turns away from you: a patch's projected area goes as 1/cos(theta),
+   which diverges at the limb. Weighting each cell by that factor is what
+   makes a silhouette appear out of where the particles are, with nothing
+   placed along the edge — and the same factor over the fold displacement is
+   what puts texture inside it, because gyri read where the surface tilts.
+
+   `outline` and `rimLift` are still here, at low values, because a little of
+   each keeps the head and the bulb legible; the brain runs on density alone.
+
+   Returns [x, y, z, w, want]: w is the per-stage brightness/size weight,
+   `want` the colour preference used to decide which particle lands here.
+   --------------------------------------------------------------------- */
+function shellSampler(cfg){
+  var sil = cfg.sil, band = cfg.band, zmax = cfg.zmax, S = cfg.depth;
+  var P = cfg.persp === undefined ? 1 : cfg.persp;
+  var lift = cfg.rimLift === undefined ? 1 : cfg.rimLift;
+  var fA = cfg.foldAmp || 0, fK = cfg.foldScale || 9;
+
+  /* The shape is a shell, and a shell seen in perspective is dense wherever
+     its surface turns away from you: the projected area of a patch goes as
+     1/cos(theta), which diverges at the limb. Weighting each cell by that
+     factor is what makes the silhouette appear out of density alone, with
+     nothing drawn along the edge. The same factor over the fold displacement
+     is what puts texture on the interior — gyri read because the surface
+     tilts there, not because anything was outlined. */
+  function foldAt(x, y){
+    return Math.sin(x * fK + y * fK * 0.62 + Math.sin(y * fK * 0.42) * 1.5);
+  }
+  function foldSlope(x, y){
+    var c = Math.cos(x * fK + y * fK * 0.62 + Math.sin(y * fK * 0.42) * 1.5);
+    return fA * Math.abs(c) * fK * 1.18;
+  }
+  function shellSlope(s){
+    var u = 1 - Math.min(s / S, 1);
+    return zmax * u / (S * Math.sqrt(Math.max(1e-3, 1 - u * u)));
+  }
+  function areaW(x, y, s){
+    if(P <= 0) return 1;
+    var a = shellSlope(s), b = foldSlope(x, y);
+    return 1 + P * (Math.min(Math.sqrt(1 + a*a + b*b), 40) - 1);
+  }
+
+  var bd = bands(sil, band, function(i){
+    var x = sil.x0 + ((i % sil.W) + 0.5) * sil.cw;
+    var y = sil.y0 + (((i / sil.W) | 0) + 0.5) * sil.ch;
+    var s = Math.max(0, -sil.sd[i]);
+    return (cfg.density ? cfg.density(i) : 1) * areaW(x, y, s);
+  }, cfg.halo);
+  var haloFrac = (cfg.halo && bd.halo.length) ? (cfg.haloFrac || 0) : 0;
+  var outline = cfg.outline || 0;
+  if(!bd.rim.length) outline = 0;
+
+  var seams = cfg.seams === undefined ? 1 : cfg.seams;
+  var folds = (seams > 0 ? (cfg.folds || []) : []).map(function(f){
+    return { pts: spline(f.pts, !!f.closed, 14), frac: f.frac * seams, w: f.w };
+  });
+  var foldTotal = folds.reduce(function(a, f){ return a + f.frac; }, 0);
+  var lat = cfg.lattice;
+  var base = cfg.fillW === undefined ? 0.30 : cfg.fillW;
+
+  return function(r){
+    var x, y, z, w, pick = r(), i;
+    if(pick < foldTotal){
+      var acc = 0, f = folds[0];
+      for(i = 0; i < folds.length; i++){ acc += folds[i].frac; if(pick < acc){ f = folds[i]; break; } }
+      var k = r() * (f.pts.length - 1), i0 = k | 0, fr = k - i0;
+      var a = f.pts[i0], b = f.pts[Math.min(i0 + 1, f.pts.length - 1)];
+      x = a[0] + (b[0] - a[0]) * fr + (r() - 0.5) * 0.055;
+      y = a[1] + (b[1] - a[1]) * fr + (r() - 0.5) * 0.055;
+      z = (r() - 0.5) * zmax * 0.55;
+      w = base + lift * (f.w - base) * (f.w > base ? 1 : 0);
+    } else if(pick < foldTotal + outline){
+      var c = bd.rim[(r() * bd.rim.length) | 0];
+      x = sil.x0 + ((c % sil.W) + r()) * sil.cw;
+      y = sil.y0 + (((c / sil.W) | 0) + r()) * sil.ch;
+      z = (r() - 0.5) * zmax * 0.26;
+      var u = Math.min(1, Math.abs(sil.at(x, y)) / band);
+      w = base + lift * (1 - base) * Math.pow(1 - u, 0.55);
+    } else if(pick < foldTotal + outline + haloFrac){
+      /* outside the shape entirely: the swarm the silhouette condensed out of */
+      var hc = bd.halo[pickWeighted(bd.hw, bd.htotal, r())];
+      x = sil.x0 + ((hc % sil.W) + r()) * sil.cw;
+      y = sil.y0 + (((hc / sil.W) | 0) + r()) * sil.ch;
+      z = (r() - 0.5) * zmax * 0.8;
+      w = base * (0.35 + 0.55 * r());
+    } else {
+      var q = bd.fill[pickWeighted(bd.fw, bd.total, r())];
+      x = sil.x0 + ((q % sil.W) + r()) * sil.cw;
+      y = sil.y0 + (((q / sil.W) | 0) + r()) * sil.ch;
+      if(lat && lat.k > 0 && lat.contour){
+        /* The lattice follows the silhouette instead of the screen: snap the
+           depth-from-edge to get bands running parallel to the contour, and
+           snap the angle about the shape's centre, with the step scaled by
+           radius so the spacing along a band stays even. */
+        var s0 = Math.max(0, -sil.at(x, y));
+        var gr = sil.grad(x, y);
+        var bandS = Math.round(s0 / lat.L) * lat.L;
+        x += gr[0] * (s0 - bandS) * lat.k;
+        y += gr[1] * (s0 - bandS) * lat.k;
+        var ax = x - sil.cx, ay = y - sil.cy, rr = Math.sqrt(ax*ax + ay*ay);
+        if(rr > lat.L * 0.5 && lat.k2 > 0){
+          var step = lat.L / rr;
+          var th = Math.atan2(ay, ax);
+          var dth = (Math.round(th / step) * step - th) * lat.k2;
+          var c2 = Math.cos(dth), s2 = Math.sin(dth);
+          x = sil.cx + ax * c2 - ay * s2;
+          y = sil.cy + ax * s2 + ay * c2;
+        }
+      }
+      var s = Math.max(0, -sil.at(x, y));
+      var g = Math.sqrt(Math.max(0, 1 - Math.pow(1 - Math.min(s / S, 1), 2)));
+      var zs = zmax * g + fA * foldAt(x, y);
+      z = (r() < 0.5 ? -1 : 1) * Math.max(0, zs) * (0.78 + 0.22 * r());
+      /* brightness is flat unless edge lift is dialled in: with lift at 0 the
+         silhouette is carried entirely by where the particles are */
+      w = base + lift * 0.30 * Math.max(0, 1 - s / (S * 2.2));
+    }
+    return [x, y, z, Math.min(1, w), cfg.want ? cfg.want(x, y, z, w, r) : r()];
+  };
+}
+
+function brainShape(){
+  var sil = Silhouette([-1.42, -1.32, 1.40, 1.12], 300, [
+    { poly: spline(BRAIN_CORTEX, true, 16) },
+    { fn: function(x, y){
+        var dx = (x - 0.66) / 0.37, dy = (y + 0.66) / 0.29;      /* cerebellum */
+        if(dx*dx + dy*dy <= 1) return true;
+        if(y < -0.42 && y > -1.02){                              /* brainstem */
+          var t = (-0.42 - y) / 0.60, cx = 0.17 - 0.09 * t, rad = 0.110 - 0.045 * t;
+          if(Math.abs(x - cx) <= rad) return true;
+        }
+        return false;
+      } }
+  ]);
+  return shellSampler({
+    sil: sil, band: 0.032, zmax: 0.29, depth: 0.07, outline: 0.01, rimLift: 0.02,
+    persp: 1.60, foldAmp: 0.050, foldScale: 8.0, seams: 0,
+    halo: 0.37, haloFrac: 0.16, fillW: 0.62,
+    lattice: { L: 0.035, k: 0.40, k2: 0.26, contour: true },
+    /* gyri: thin the interior along a striation pattern so the fill has a
+       folded read rather than an even dusting. Gentler than it was — the
+       reference's interior is dense, and the folds are gaps in a crowd. */
+    density: function(i){
+      var x = sil.x0 + ((i % sil.W) + 0.5) * sil.cw, y = sil.y0 + (((i / sil.W) | 0) + 0.5) * sil.ch;
+      var a = Math.sin(x * 9.5 + y * 5.5 + Math.sin(y * 4.0) * 1.5);
+      var b = Math.sin(x * 4.5 - y * 10.0 + 2.1);
+      return 0.34 + 0.66 * Math.pow(0.5 + 0.5 * (a * 0.62 + b * 0.38), 1.4);
+    },
+    /* seams at 0: the brain's interior structure comes from the shell's own
+       folds and the striation, not from hand-placed curves. The curves stay
+       so `seams` remains a value to turn up, not work to redo. */
+    folds: [
+      { pts: BRAIN_SULCUS, frac: 0.060, w: 0.52 },
+      { pts: BRAIN_FOLD2,  frac: 0.028, w: 0.42 },
+      { pts: BRAIN_FOLD3,  frac: 0.028, w: 0.42 }
+    ]
+  });
+}
+
+function headShape(){
+  var sil = Silhouette([-1.18, -1.72, 1.14, 1.18], 300, [{ poly: spline(HEAD_PROFILE, true, 16) }]);
+  return shellSampler({
+    sil: sil, band: 0.078, zmax: 0.37, depth: 0.06, outline: 0.04, rimLift: 0.68,
+    persp: 1.15, foldAmp: 0.015, foldScale: 5.0, seams: 0.45,
+    halo: 0.32, haloFrac: 0.115, fillW: 0.53,
+    lattice: { L: 0.050, k: 0.40, k2: 0.28, contour: true },
+    folds: [
+      { pts: HEAD_EAR,  frac: 0.022, w: 0.48 },
+      { pts: HEAD_BROW, frac: 0.016, w: 0.40 },
+      { pts: HEAD_JAW,  frac: 0.020, w: 0.38 }
+    ],
+    want: function(x, y, z, w, r){ return 0.40 + 0.34 * w + 0.26 * r(); }
+  });
+}
+
+function bulbShape(){
+  /* Upright profile first — radius as a function of height — then tilted,
+     because frame 14 hangs the bulb top-left with the base falling away
+     to the lower right. */
+  function radius(y){
+    if(y > 1.06 || y < -1.06) return -1;
+    if(y >= -0.10) return 0.62 * Math.sqrt(Math.max(0, 1 - Math.pow((y - 0.45) / 0.61, 2)));
+    if(y >= -0.40) return 0.232 + 0.052 * Math.cos((y + 0.25) * 10.0);
+    if(y >= -0.94) return 0.246 + 0.024 * Math.sin(y * 70.0);        /* screw threads */
+    return 0.13;
+  }
+  var CA = Math.cos(0.66), SA = Math.sin(0.66);
+  var sil = Silhouette([-0.82, -1.14, 0.82, 1.14], 260, [{ fn: function(x, y){
+    var R = radius(y); return R > 0 && Math.abs(x) <= R;
+  } }]);
+  var base = shellSampler({
+    sil: sil, band: 0.068, zmax: 0.57, depth: 0.16, outline: 0.14, rimLift: 0.66,
+    persp: 1.75, foldAmp: 0.018, foldScale: 11.0, seams: 0.45,
+    halo: 0.16, haloFrac: 0.045, fillW: 0.47,
+    lattice: { L: 0.048, k: 0.40, k2: 0.28, contour: true },
+    want: function(x, y){ return Math.min(1, Math.max(0, (y + 0.95) / 1.95)); }
+  });
+  return function(r){
+    var p = base(r);
+    return [p[0] * CA - p[1] * SA, p[0] * SA + p[1] * CA, p[2], p[3], p[4]];
+  };
+}
+
+function globeShape(){
+  var LON0 = 15 * Math.PI / 180, TILT = 0.26;
+  var CT = Math.cos(TILT), ST = Math.sin(TILT);
+  function place(lat, lon, rad){
+    var cl = Math.cos(lat);
+    var x = rad * cl * Math.sin(lon - LON0), y = rad * Math.sin(lat), z = rad * cl * Math.cos(lon - LON0);
+    return [x * CT - y * ST, x * ST + y * CT, z];
+  }
+  return function(r){
+    /* No limb ring and no land lift: at these settings the globe is its
+       continents, and the sphere is whatever the eye completes between them. */
+    if(r() < 0.0){ return [0, 0, 0, 0, 0]; }
+    var lat, lon, land, tries = 0;
+    do {
+      lat = Math.asin(r() * 2 - 1); lon = (r() * 2 - 1) * Math.PI;
+      land = onLand(lon * 180 / Math.PI, lat * 180 / Math.PI);
+      tries++;
+    } while(!land && r() > 0.0 && tries < 10);       /* land, or ten tries */
+    if(!land){                                        /* the ocean carries the grid */
+      var q = r();
+      if(q < 0.40) lat = Math.round(lat / (Math.PI / 12)) * (Math.PI / 12) + (r() - 0.5) * 0.02;
+      else if(q < 0.78) lon = Math.round(lon / (Math.PI / 12)) * (Math.PI / 12) + (r() - 0.5) * 0.02;
+    }
+    var p = place(lat, lon, 0.995);
+    var rxy = Math.sqrt(p[0]*p[0] + p[1]*p[1]);
+    /* land is read through density and hue, not through bigger glyphs: w
+       drives point size as well as brightness, and fat dots lose the coastline */
+    var w = 0.44;
+    return [p[0], p[1], p[2], Math.min(0.96, w), land ? 0.88 + 0.12 * r() : 0.40 * r()];
+  };
+}
+
+function scatterShape(){
+  return function(r){
+    var big = r() < 0.055;
+    return [(r() * 2 - 1) * 2.15, (r() * 2 - 1) * 1.40, (r() * 2 - 1) * 1.30,
+            big ? 0.62 + 0.30 * r() : 0.09 + 0.22 * r(), r()];
+  };
+}
+
+/* ---------------------------------------------------------------------
+   Assembly. Five shape rows, one props row. A particle keeps its colour
+   and its seed for the life of the page, so the field reads as one swarm
+   rearranging rather than a crossfade between two clouds.
+   --------------------------------------------------------------------- */
+var PALETTE = [
+  [1.000, 0.722, 0.161],   /* Saffron Spark  #ffb829 */
+  [1.000, 1.000, 1.000],   /* Bone White     #ffffff */
+  [0.502, 0.322, 1.000],   /* Electric Iris  #8052ff */
+  [0.082, 0.518, 0.431]    /* Deep Verdant   #15846e */
+];
+var WARMTH = [1.00, 0.60, 0.26, 0.00];   /* amber .. teal, for the bulb gradient */
+var WHITEN = [0.45, 1.00, 0.20, 0.05];   /* white first, for the globe's continents */
+
+function buildField(N, TEXW){
+  var rows = Math.ceil(N / TEXW), SHAPES = 5, i, j;
+  var r = makeRng(20260912);
+  var nA = noise3(11), nB = noise3(97);
+  var shapes = new Float32Array(TEXW * rows * SHAPES * 4);
+  var props  = new Float32Array(TEXW * rows * 4);
+  var cls    = new Uint8Array(N);
+
+  function put(row, i, p){
+    var o = (((row * rows) + ((i / TEXW) | 0)) * TEXW + (i % TEXW)) * 4;
+    shapes[o] = p[0]; shapes[o+1] = p[1]; shapes[o+2] = p[2]; shapes[o+3] = p[3];
+  }
+
+  /* Stage 0 is the brain, and it is also the colour reference frame: the
+     noise is sampled at the brain position, so a particle's zone is fixed
+     once and survives every later morph. */
+  var brain = brainShape();
+  var field = new Float64Array(N);
+  for(i = 0; i < N; i++){
+    var p = brain(r);
+    put(0, i, p);
+    var x = p[0], y = p[1], z = p[2];
+    field[i] = 0.5 + 0.5 * (nA(x * 1.05, y * 1.05, z * 1.05) * 0.20 + nB(x * 9.0, y * 9.0, z * 9.0) * 0.80)
+             - 0.17 * p[3];                 /* amber pools along the contour */
+  }
+  /* Thresholds come from the field's own quantiles, not from constants:
+     gradient noise is bell-shaped, and fixed cuts put ~72% of the field in
+     one zone. Shares are read off the reference frames — amber dominant,
+     white common, violet in large patches, teal a minority. */
+  var sorted = Array.prototype.slice.call(field).sort(function(a, b){ return a - b; });
+  /* Shares are amber .43 / white .43 / violet .14. The third cut lands past
+     1.0, so verdant draws no particles at these settings — it is the one
+     palette colour the field currently does not use. Lower violet to bring
+     it back. */
+  var cut = [0.43, 0.86, 1.27].map(function(q){ return sorted[Math.min(N - 1, (q * N) | 0)]; });
+  for(i = 0; i < N; i++){
+    var v = field[i];
+    var c = v < cut[0] ? 0 : v < cut[1] ? 1 : v < cut[2] ? 2 : 3;
+    cls[i] = c;
+    var o = (((i / TEXW) | 0) * TEXW + (i % TEXW)) * 4;
+    props[o] = PALETTE[c][0]; props[o+1] = PALETTE[c][1]; props[o+2] = PALETTE[c][2];
+    props[o+3] = r();
+  }
+
+  /* The remaining stages choose *which* particle lands where, by matching a
+     per-target colour preference against the particle's fixed colour. That
+     is what puts amber at the bulb's crown and white on the continents
+     without ever repainting a particle. */
+  var defs = [
+    { row: 1, gen: headShape(),    key: WARMTH, jit: 0.90 },
+    { row: 2, gen: scatterShape(), key: null,   jit: 0    },
+    { row: 3, gen: bulbShape(),    key: WARMTH, jit: 0.90 },
+    /* the globe wants its continents separated, not blended, so it matches
+       on a tighter key than the bulb's gradient does */
+    { row: 4, gen: globeShape(),   key: WHITEN, jit: 0.90 }
+  ];
+  var order = new Int32Array(N), tOrder = new Int32Array(N);
+  for(j = 0; j < defs.length; j++){
+    var d = defs[j], tgt = new Array(N);
+    for(i = 0; i < N; i++) tgt[i] = d.gen(r);
+    if(!d.key){
+      for(i = 0; i < N; i++) put(d.row, i, tgt[i]);
+      continue;
+    }
+    var pk = new Float64Array(N), tk = new Float64Array(N);
+    for(i = 0; i < N; i++){
+      order[i] = i; tOrder[i] = i;
+      pk[i] = d.key[cls[i]] + d.jit * r();
+      tk[i] = tgt[i][4];
+    }
+    var po = Array.prototype.slice.call(order), to = Array.prototype.slice.call(tOrder);
+    po.sort(function(a, b){ return pk[a] - pk[b]; });
+    to.sort(function(a, b){ return tk[a] - tk[b]; });
+    for(i = 0; i < N; i++) put(d.row, po[i], tgt[to[i]]);
+  }
+  return { shapes: shapes, props: props, rows: rows, stages: SHAPES };
+}
+
+/* =====================================================================
+   The field. One persistent layer for the whole page: it never remounts,
+   and a particle keeps its colour and its seed from the hero to the
+   footer, so the page reads as one swarm rearranging rather than as six
+   different clouds crossfading.
+   ===================================================================== */
+var FOCAL = 2.15;            /* must match the vertex shader */
+var GUTTER = 34;             /* px of clear space demanded between copy and shape */
+var PIXEL_BUDGET = 2.8e6;    /* render-scale cap; the field is fill-rate bound */
+
+/* row  = which shape row in the texture (0 and 5 share the brain)
+   side = +1 shape right / copy left, -1 shape left / copy right, 0 centred
+   copy = the block the shape has to clear;  anchor = what drives the scroll
+   scrim= how much the copy side has to be darkened at this stage */
+var STAGE = [
+  { row:0, side: 1, y: 0.00, scale:1.32, dist:3.15, dim:1.00, copy:'#hero-copy',    anchor:'#top'        },
+  { row:1, side:-1, y: 0.06, scale:1.20, dist:3.20, dim:1.00, copy:'#work-head',    anchor:'#work-head'  },
+  { row:2, side: 0, y: 0.00, scale:1.00, dist:2.45, dim:0.62, copy:null,            anchor:'#work-body'  },
+  { row:3, side:-1, y: 0.03, scale:1.36, dist:3.00, dim:1.00, copy:'#how-copy',     anchor:'#how'        },
+  { row:4, side: 1, y: 0.00, scale:1.82, dist:3.85, dim:1.00, copy:'#bg-copy',      anchor:'#background' },
+  { row:0, side: 1, y: 0.00, scale:1.20, dist:3.25, dim:1.00, copy:'#contact-copy', anchor:'#contact'    }
+];
+var SHAPE_NAME = ['brain','head','scatter','lightbulb','globe','brain-return'];
+
+function fail(why, err){
+  if(window.console) console.warn('[field] ' + why + (err ? ': ' + err : '') +
+    ' — falling back. Add ?field=fluid for the previous constellation field.');
+  return false;
+}
 
 function mountField(host){
   var cv = document.createElement('canvas');
   var gl = null;
-  try{ gl = cv.getContext('webgl', {antialias:true, alpha:false, depth:false,
-                                    premultipliedAlpha:true}); }catch(e){}
-  if(!gl){ if(window.console) console.warn('[field] no WebGL context; using the CSS fallback'); return false; }
+  try{
+    gl = cv.getContext('webgl2', {antialias:false, alpha:false, depth:false,
+      premultipliedAlpha:true, preserveDrawingBuffer:true, powerPreference:'high-performance'});
+  }catch(e){ return fail('webgl2 context threw', e); }
+  if(!gl) return fail('no webgl2 context');
+  if(!gl.getExtension('EXT_color_buffer_float') && !gl.getExtension('OES_texture_float_linear')){
+    /* RGBA32F as a *sampled* texture needs no extension in WebGL2; this is
+       only a probe, so carry on either way. */
+  }
 
   function sh(type, src){
-    var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o);
-    if(!gl.getShaderParameter(o, gl.COMPILE_STATUS)){
-      if(window.console) console.warn('[field] shader', gl.getShaderInfoLog(o)); return null; }
+    var o = gl.createShader(type);
+    gl.shaderSource(o, src); gl.compileShader(o);
+    if(!gl.getShaderParameter(o, gl.COMPILE_STATUS)){ fail('shader', gl.getShaderInfoLog(o)); return null; }
     return o;
   }
-  var vs = sh(gl.VERTEX_SHADER, VERT), fs = sh(gl.FRAGMENT_SHADER, FRAG);
+  /* #version must be the first line in GLSL ES 3.00, and textContent of an
+     inline block starts with the newline after the tag */
+  var vsrc = document.getElementById('particles-vert').textContent.trim();
+  var fsrc = document.getElementById('particles-frag').textContent.trim();
+  var vs = sh(gl.VERTEX_SHADER, vsrc), fs = sh(gl.FRAGMENT_SHADER, fsrc);
   if(!vs || !fs) return false;
   var prog = gl.createProgram();
   gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
-  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){
-    if(window.console) console.warn('[field] link', gl.getProgramInfoLog(prog)); return false; }
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) return fail('link', gl.getProgramInfoLog(prog));
   gl.useProgram(prog);
 
-  /* ---- the silhouette: a union of ellipses, lumpy on purpose ---- */
-  var LOBES = [
-    [-0.30, 0.18, 0.52, 0.44], [ 0.14, 0.26, 0.50, 0.42],
-    [ 0.52, 0.02, 0.38, 0.36], [-0.52,-0.10, 0.34, 0.30],
-    [-0.02,-0.22, 0.46, 0.30], [ 0.40,-0.36, 0.26, 0.20],
-    [ 0.16,-0.56, 0.10, 0.18]
-  ];
-  function inside(x, y){
-    for(var i = 0; i < LOBES.length; i++){
-      var L = LOBES[i], dx = (x - L[0]) / L[2], dy = (y - L[1]) / L[3];
-      if(dx*dx + dy*dy <= 1.0) return true;
-    }
-    return false;
-  }
-  /* striations standing in for gyri, so the mass reads as folded */
-  function fold(x, y){
-    var a = Math.sin(x * 13.0 + y * 7.0 + Math.sin(y * 5.0) * 1.6);
-    var b = Math.sin(x * 5.5 - y * 11.0 + 2.2);
-    return 0.30 + 0.70 * Math.pow(0.5 + 0.5 * (a * 0.65 + b * 0.35), 1.7);
-  }
-
-  var PALETTE = [
-    [0.502,0.322,1.000, 0.34],   /* electric iris  */
-    [0.702,0.612,1.000, 0.16],   /* lavender       */
-    [1.000,0.722,0.161, 0.12],   /* saffron spark  */
-    [0.184,0.839,0.690, 0.12],   /* verdant, lifted*/
-    [1.000,0.361,0.784, 0.09],   /* magenta        */
-    [0.302,0.545,1.000, 0.17]    /* blue           */
-  ];
-  function pick(r){
-    var acc = 0;
-    for(var i = 0; i < PALETTE.length; i++){ acc += PALETTE[i][3]; if(r <= acc) return PALETTE[i]; }
-    return PALETTE[0];
-  }
-
-  /* deterministic, so the composition is the same for every visitor */
-  var seed = 20260912;
-  function rnd(){ seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; }
-
-  var CORE = 3200, AMBIENT = 850;
-  var centres = [], colours = [], metas = [], sizes = [];
-  var guard = 0;
-  while(centres.length < CORE * 2 && guard++ < 400000){
-    var x = rnd() * 2.2 - 1.1, y = rnd() * 1.9 - 0.95;
-    if(!inside(x, y)) continue;
-    if(rnd() > fold(x, y)) continue;
-    var col = pick(rnd());
-    centres.push(x, y); colours.push(col[0], col[1], col[2]);
-    metas.push(rnd(), 0.55 + rnd() * 0.45);
-    sizes.push(0.0055 + rnd() * 0.0075);
-  }
-  for(var i = 0; i < AMBIENT; i++){
-    var ax = rnd() * 3.4 - 1.7, ay = rnd() * 2.4 - 1.2;
-    if(inside(ax, ay) && rnd() < 0.8) continue;
-    var ac = pick(rnd());
-    centres.push(ax, ay); colours.push(ac[0], ac[1], ac[2]);
-    metas.push(rnd(), 0.10 + rnd() * 0.22);
-    sizes.push(0.0040 + rnd() * 0.0055);
-  }
-  var N = sizes.length;
-
-  /* one triangle = three edges = six line vertices */
-  var TRI = [[0, -0.62], [0.56, 0.40], [-0.56, 0.40]];
-  var EDGES = [0,1, 1,2, 2,0];
-  var vC = new Float32Array(N * 6 * 2), vO = new Float32Array(N * 6 * 2),
-      vK = new Float32Array(N * 6 * 3), vM = new Float32Array(N * 6 * 2);
-  for(var p = 0, k = 0; p < N; p++){
-    for(var e = 0; e < 6; e++, k++){
-      var corner = TRI[EDGES[e]], sz = sizes[p];
-      vC[k*2] = centres[p*2]; vC[k*2+1] = centres[p*2+1];
-      vO[k*2] = corner[0] * sz; vO[k*2+1] = corner[1] * sz;
-      vK[k*3] = colours[p*3]; vK[k*3+1] = colours[p*3+1]; vK[k*3+2] = colours[p*3+2];
-      vM[k*2] = metas[p*2]; vM[k*2+1] = metas[p*2+1];
-    }
-  }
-  function attach(name, data, size){
-    var b = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, b);
-    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-    var loc = gl.getAttribLocation(prog, name);
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
-  }
-  attach('a_centre', vC, 2); attach('a_offset', vO, 2);
-  attach('a_colour', vK, 3); attach('a_meta', vM, 2);
-
   var U = {};
-  ['u_time','u_res','u_scale','u_shift'].forEach(function(n){ U[n] = gl.getUniformLocation(prog, n); });
+  ['uShapes','uProps','uTexW','uRowsPerStage','uStageA','uStageB','uT','uTime','uYaw',
+   'uFrame','uDist','uAspect','uSize','uMotion','uDim'].forEach(function(n){
+    U[n] = gl.getUniformLocation(prog, n);
+  });
+
+  var narrow = window.innerWidth < 700;
+  var N = narrow ? 14000 : (window.innerWidth < 1000 ? 26000 : 40000);
+  var TEXW = 512;
+  var data;
+  try{ data = buildField(N, TEXW); }catch(e){ return fail('shape generation', e); }
+
+  function upload(unit, arr, h){
+    var tex = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, TEXW, h, 0, gl.RGBA, gl.FLOAT, arr);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+  try{
+    upload(0, data.shapes, data.rows * data.stages);
+    upload(1, data.props, data.rows);
+  }catch(e){ return fail('float texture upload', e); }
+  /* A subsample of each shape's (x, z), kept so the framing can solve for
+     the offset against the shape that is actually there, rather than against
+     an assumed half-width. 700 points is plenty for an extreme. */
+  var SUB = [];
+  (function(){
+    var step = Math.max(1, Math.floor(N / 700));
+    for(var row = 0; row < data.stages; row++){
+      var arr = [];
+      for(var i = 0; i < N; i += step){
+        var o = (((row * data.rows) + ((i / TEXW) | 0)) * TEXW + (i % TEXW)) * 4;
+        arr.push(data.shapes[o], data.shapes[o + 2]);
+      }
+      SUB[row] = new Float32Array(arr);
+    }
+  })();
+
+  gl.uniform1i(U.uShapes, 0);
+  gl.uniform1i(U.uProps, 1);
+  gl.uniform1i(U.uTexW, TEXW);
+  gl.uniform1i(U.uRowsPerStage, data.rows);
+  gl.bindVertexArray(gl.createVertexArray());
+  gl.disable(gl.DEPTH_TEST);
+  gl.depthMask(false);
   gl.enable(gl.BLEND);
-  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);   /* premultiplied, additive-ish on black */
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);   /* premultiplied, additive on black */
   gl.clearColor(0, 0, 0, 1);
 
   host.appendChild(cv);
   host.classList.add('gl');
 
-  /* pixel budget, not a raw DPR cap: full DPR on a wide retina display is
-     ~7M px a frame and the line count is what costs, not the fill */
-  var BUDGET = 3.2e6, scale = 1, sized = false;
+  /* ---- render scale: a pixel budget, not a raw DPR cap ---- */
+  var scale = 1, cssW = 0, cssH = 0, sized = false;
   function size(){
     var r = cv.getBoundingClientRect();
     if(!r.width || !r.height){ sized = false; return false; }
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    scale = Math.min(dpr, Math.sqrt(BUDGET / (r.width * r.height)));
+    scale = Math.min(dpr, Math.sqrt(PIXEL_BUDGET / (r.width * r.height)));
     var w = Math.max(1, Math.round(r.width * scale)), h = Math.max(1, Math.round(r.height * scale));
     if(cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
-    gl.uniform2f(U.u_res, w, h);
+    gl.uniform1f(U.uAspect, w / h);
+    if(r.width !== cssW || r.height !== cssH){ cssW = r.width; cssH = r.height; frame_(); }
     sized = true; return true;
   }
 
-  var t = 0, prev = 0;
-  function place(){
-    /* the constellation sits right of centre on desktop, and centres itself
-       behind the type once the columns stack */
-    var narrow = window.innerWidth < 900;
-    /* centring it on narrow put the mass straight behind the copy; below the
-       text block it reads as a footer visual instead of noise under words */
-    gl.uniform1f(U.u_scale, narrow ? 0.50 : 0.78);
-    gl.uniform2f(U.u_shift, narrow ? 0.02 : 0.62, narrow ? -0.80 : 0.06);
+  /* ---- framing, derived from the copy column, never hardcoded ----
+     The copy column is a CSS box and the offset is a world-space number.
+     Pick the number by hand and the two collide at some viewport width, so
+     the offset is solved against the box the shape actually has to clear.
+
+     ANIMATION.md §4 gives this as `side * claimed * dist / FOCAL`, which
+     puts the shape's *centre* on the claimed boundary and then shrinks by a
+     constant. That leaves the shape's near edge a little over the copy —
+     measurably, ~20px at 2560 and worse as the shape's own half-width drifts
+     from the 0.55 the constant assumes. Same inputs, solved rather than
+     approximated: find the offset at which the shape's extreme projected
+     x lands exactly on the gutter, and only shrink if that would push too
+     much of the shape off-frame to read. */
+  var fx = [], fscale = [];
+  function extremeNdc(row, s, dist, aspect, off, side){
+    var a = SUB[row], best = side > 0 ? 1e9 : -1e9, i;
+    for(i = 0; i < a.length; i += 2){
+      var z = a[i + 1];
+      /* the yaw sway swings x by up to |z|*sin(0.15); spend it toward the copy */
+      var x = a[i] - side * 0.16 * Math.abs(z);
+      var w = dist - s * z; if(w < 0.25) w = 0.25;
+      var n = FOCAL * (s * x + off * aspect) / (aspect * w);
+      if(side > 0){ if(n < best) best = n; } else if(n > best) best = n;
+    }
+    return best;
   }
-  function frame(now){
-    if(!sized && !size()){ requestAnimationFrame(frame); return; }
-    var dt = prev ? Math.min((now - prev) / 1000, 0.05) : 1/60;
-    prev = now;
-    var v = REDUCED ? 0 : Motion.update(now, dt);
-    t += dt * (0.30 * (1 + Math.abs(v) * 1.6) + v * 0.22);
-    place();
-    gl.uniform1f(U.u_time, t);
+  function solveOffset(row, s, dist, aspect, edge, side){
+    var lo = -8, hi = 8, mid, i;
+    for(i = 0; i < 28; i++){
+      mid = (lo + hi) / 2;
+      var e = extremeNdc(row, s, dist, aspect, mid, side);
+      if(e < edge) lo = mid; else hi = mid;      /* extreme rises with offset */
+    }
+    return (lo + hi) / 2;
+  }
+  function frame_(){
+    var vw = document.documentElement.clientWidth || window.innerWidth;
+    var aspect = (cv.width && cv.height) ? cv.width / cv.height : (vw / window.innerHeight);
+    for(var i = 0; i < STAGE.length; i++){
+      var st = STAGE[i];
+      if(!st.side || vw < 900){ fx[i] = 0; fscale[i] = st.scale * (vw < 900 ? 0.82 : 1); continue; }
+      var el = document.querySelector(st.copy);
+      if(!el){
+        /* a stage whose copy selector does not resolve is framed against
+           nothing, and the shape lands on the text — say so rather than
+           quietly falling back */
+        fail('stage ' + i + ' has no copy box for ' + st.copy);
+        fx[i] = st.side * 0.5 * st.dist / FOCAL; fscale[i] = st.scale; continue;
+      }
+      var r = el.getBoundingClientRect();
+      /* the one edge the shape has to stay clear of, in NDC */
+      var edgePx = st.side > 0 ? (r.right + GUTTER) : (r.left - GUTTER);
+      var edge = 2 * edgePx / vw - 1;
+      var sc = st.scale;
+      var off = solveOffset(st.row, sc, st.dist, aspect, edge, st.side);
+      /* how much of the shape is still on screen once it has been pushed
+         aside; if the copy has eaten the frame, shrink rather than exile it */
+      var far = extremeNdc(st.row, sc, st.dist, aspect, off, -st.side);
+      var span = Math.abs(far - edge);
+      var visible = st.side > 0 ? (1 - edge) : (edge + 1);
+      if(span > 0 && visible / span < 0.55){
+        sc *= Math.max(0.45, (visible / span) / 0.55);
+        off = solveOffset(st.row, sc, st.dist, aspect, edge, st.side);
+      }
+      fx[i] = off;
+      fscale[i] = sc;
+    }
+  }
+
+  /* ---- scroll to stage ----
+     Sections here are not viewport-sized and do not snap, so a stage is a
+     scroll *band* derived from its anchor's real box: settled while the
+     anchor owns the viewport, morphing only in the gaps between. That is
+     what lets #work hold scatter across a long free scroll instead of
+     crawling through it. */
+  var bands = [], raw = [], mid = [];
+  function measure(){
+    var vh = window.innerHeight, sy = window.scrollY || 0, i;
+    mid = [];
+    bands = STAGE.map(function(st){
+      var el = document.querySelector(st.anchor);
+      if(!el) return [0, 0];
+      var r = el.getBoundingClientRect(), top = r.top + sy, h = r.height;
+      var c = top + h / 2 - vh / 2;
+      mid.push(c);
+      /* A stage is settled only while its own section owns the screen. Any
+         wider and a shape framed to clear this section's copy is sitting on
+         the next section's, which is what the readPixels sweep caught. */
+      var hold = Math.max(0, (h - vh * 0.94) / 2);
+      return [c - hold, c + hold];
+    });
+    for(i = 1; i < bands.length; i++){
+      if(bands[i][0] < bands[i-1][1] + 24){
+        var split = (bands[i-1][1] + bands[i][0]) / 2;
+        bands[i-1][1] = split - 12; bands[i][0] = split + 12;
+      }
+    }
+    raw = bands.map(function(b){ return [b[0], b[1]]; });
+    Scrim.measure();
+    bands[0][0] = -1e9;
+    bands[bands.length - 1][1] = 1e9;
+    frame_();
+  }
+
+  var forced = null;
+  function stageAt(y){
+    if(forced !== null) return { a:forced, b:forced, t:0 };
+    for(var i = 0; i < bands.length; i++){
+      if(y <= bands[i][1]){
+        if(i === 0 || y >= bands[i][0]) return { a:i, b:i, t:0 };
+        var lo = bands[i-1][1], hi = bands[i][0];
+        var f = hi > lo ? (y - lo) / (hi - lo) : 1;
+        f = Math.min(1, Math.max(0, f));
+        /* smootherstep: a stage arrives settled, never caught mid-flight */
+        return { a:i-1, b:i, t: f*f*f*(f*(f*6-15)+10) };
+      }
+    }
+    var n = bands.length - 1;
+    return { a:n, b:n, t:0 };
+  }
+
+  var t = 0, prevT = 0, raf = 0, lastKey = '';
+  var SIZE_BASE = narrow ? 9.0 : 12.0;
+  var state = { a:0, b:0, t:0, p:0 };
+
+  function draw(now){
+    if(!sized && !size()){ raf = requestAnimationFrame(draw); return; }
+    size();
+    var dt = prevT ? Math.min((now - prevT) / 1000, 0.05) : 1/60;
+    prevT = now;
+    var v = (REDUCED || CAPTURE) ? 0 : Motion.update(now, dt);
+    if(!REDUCED && !CAPTURE) t += dt * (0.30 * (1 + Math.abs(v) * 1.6) + v * 0.22);
+
+    var s = stageAt(window.scrollY || 0);
+    var A = STAGE[s.a], B = STAGE[s.b], k = s.t;
+    var p = s.a + k;
+    state.a = s.a; state.b = s.b; state.t = k; state.p = p;
+
+    /* under reduced motion nothing moves on its own, so only redraw when the
+       scroll actually changed the shape */
+    var key = REDUCED ? (s.a + ':' + s.b + ':' + k.toFixed(3) + ':' + cv.width) : '';
+    if(REDUCED && key === lastKey){ raf = requestAnimationFrame(draw); return; }
+    lastKey = key;
+
+    var lerp = function(a, b){ return a + (b - a) * k; };
+    /* No vertical lift through a handover: the section leaving holds the top
+       of the viewport and the section arriving holds the bottom, so there is
+       no free band to rise into. Measured — lifting only traded one collision
+       for another. */
+    gl.uniform1i(U.uStageA, A.row);
+    gl.uniform1i(U.uStageB, B.row);
+    gl.uniform1f(U.uT, A.row === B.row ? (s.a === s.b ? 0 : k) : k);
+    gl.uniform1f(U.uTime, CAPTURE ? 0 : t);
+    gl.uniform1f(U.uYaw, (REDUCED || CAPTURE) ? 0 : Math.sin(t * 0.12) * 0.10 + p * 0.05);
+    gl.uniform3f(U.uFrame, lerp(fx[s.a], fx[s.b]), lerp(A.y, B.y), lerp(fscale[s.a], fscale[s.b]));
+    gl.uniform1f(U.uDist, lerp(A.dist, B.dist));
+    gl.uniform1f(U.uSize, SIZE_BASE * scale);
+    gl.uniform1f(U.uMotion, (REDUCED || CAPTURE) ? 0 : 1);
+    gl.uniform1f(U.uDim, lerp(A.dim, B.dim));
+
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawArrays(gl.LINES, 0, N * 6);
-    if(!REDUCED) requestAnimationFrame(frame);
+    gl.drawArrays(gl.POINTS, 0, N);
+    Scrim.set(k, lerp(A.dim, B.dim));
+    raf = requestAnimationFrame(draw);
   }
-  function remeasure(){ size(); if(REDUCED){ place(); gl.uniform1f(U.u_time, t);
-    gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.LINES, 0, N * 6); } }
-  window.addEventListener('resize', remeasure);
-  if(window.ResizeObserver) new ResizeObserver(remeasure).observe(cv);
-  requestAnimationFrame(frame);
+
+  window.addEventListener('resize', measure);
+  window.addEventListener('load', measure);
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden){ cancelAnimationFrame(raf); raf = 0; prevT = 0; }
+    else if(!raf) raf = requestAnimationFrame(draw);
+  });
+  measure();
+  raf = requestAnimationFrame(draw);
+
+  /* Hooks for tools/frames.mjs: force a stage, freeze, and read the canvas
+     back so "the copy never sits on glyphs" is measured, not eyeballed. */
+  window.__field = {
+    stages: STAGE.length,
+    name: function(i){ return SHAPE_NAME[i]; },
+    particles: N,
+    settled: function(){ return state.t === 0 || state.t === 1; },
+    state: function(){ return { a:state.a, b:state.b, t:state.t }; },
+    force: function(i){ forced = i; measure(); },
+    /* the scroll position at which stage i is settled, for the capture tool */
+    centre: function(i){
+      var b = raw[i], max = document.documentElement.scrollHeight - window.innerHeight;
+      /* the anchor's own centred position, held inside its settled band */
+      var c = Math.max(b[0], Math.min(b[1], mid[i]));
+      return Math.max(0, Math.min(max, c));
+    },
+    release: function(){ forced = null; },
+    /* mean luminance of the canvas under a CSS-pixel rectangle */
+    lumaUnder: function(rect){
+      var x = Math.max(0, Math.round(rect.x * scale));
+      var y = Math.max(0, Math.round((cssH - rect.y - rect.height) * scale));
+      var w = Math.max(1, Math.min(cv.width - x, Math.round(rect.width * scale)));
+      var h = Math.max(1, Math.min(cv.height - y, Math.round(rect.height * scale)));
+      var n = w * h, buf = new Uint8Array(n * 4), i;
+      gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      var hist = new Int32Array(256), sum = 0, max = 0, mi = 0;
+      for(i = 0; i < n; i++){
+        var L = 0.2126 * buf[i*4] + 0.7152 * buf[i*4+1] + 0.0722 * buf[i*4+2];
+        hist[L | 0]++; sum += L;
+        if(L > max){ max = L; mi = i; }
+      }
+      /* Mean answers "is this region dark". For contrast the interesting
+         number is the background the glyph strokes actually sit on, so take
+         the brightest 5% of the box: a single lit particle behind a 560px
+         label is not what decides whether the label can be read, but a lit
+         fifth of it is. */
+      var want = Math.max(1, Math.round(n * 0.05)), acc = 0, cutL = 255;
+      for(i = 255; i >= 0; i--){ acc += hist[i]; if(acc >= want){ cutL = i; break; } }
+      var hr = 0, hg = 0, hb = 0, hn = 0;
+      for(i = 0; i < n; i++){
+        var L2 = 0.2126 * buf[i*4] + 0.7152 * buf[i*4+1] + 0.0722 * buf[i*4+2];
+        if(L2 >= cutL){ hr += buf[i*4]; hg += buf[i*4+1]; hb += buf[i*4+2]; hn++; }
+      }
+      hn = hn || 1;
+      return { mean: sum / n / 255, max: max / 255, px: n,
+               rgb: [buf[mi*4], buf[mi*4+1], buf[mi*4+2]],
+               hot: [hr / hn, hg / hn, hb / hn] };
+    }
+  };
   return true;
 }
-mountField(document.getElementById('field'));
 
-/* ---- the page reads the same velocity the constellation does ---- */
+/* ---------------------------------------------------------------------
+   Contrast. The field is framed so the copy's half of the viewport is
+   empty, and the scrim is the insurance behind that: it darkens only the
+   side the copy is on, so protecting the text does not also dim the shape.
+   Numbers are re-measured, not assumed — see the .scrim comment in the CSS.
+   --------------------------------------------------------------------- */
+var Scrim = (function(){
+  var l = document.getElementById('scrim-l');
+  var r = document.getElementById('scrim-r');
+  var u = document.getElementById('scrim-u');
+  var box = document.getElementById('scrim');
+  /* Enough to hold an amber label over lit amber glyphs at AA: the field's
+     brightest pixels reach ~1.0 encoded, CSS composites in sRGB, and
+     the field's brightest pixels reach ~1.0 encoded, CSS composites in sRGB,
+     and 1.0 * 0.32^2.2 = 0.079 relative luminance. Re-derive this if the
+     palette, the glyph size or the glyph alpha change: it moved twice, once
+     up when the base point size rose and once back down when the tuned
+     settings traded glyph size for particle count. */
+  var BASE = 0.68;
+  /* ...and the field is not always at full brightness. What has to hold is
+     the composited value, so a stage that already sits back needs less. */
+  function need(dim){
+    return Math.min(0.82, Math.max(0, 1 - (1 - BASE) / Math.max(dim, 1 - BASE)));
+  }
+  /* The swarm crosses the middle of the frame during a handover, and that is
+     the one moment there is something to look at. Cover eases off through the
+     morph rather than piling on: the transit arc has been pointed vertically
+     so the particles are not over the copy anyway, and the measurement says
+     the text still clears AA with room to spare. */
+  var EASE = 0.28;                /* how much of the side cover a morph lifts */
+  var floorNarrow = 0.74;         /* stacked layout puts copy over everything */
+  var els = null;
+
+  function targets(){
+    if(els) return els;
+    els = [];
+    STAGE.forEach(function(st){ if(st.copy) els.push(document.querySelector(st.copy)); });
+    var body = document.getElementById('work-body');
+    if(body) els.push(body);
+    els = els.filter(Boolean);
+    return els;
+  }
+
+  /* The gradient has to go solid at least as far as the copy reaches, or it
+     protects the wrong pixels. Measured from the widest copy column, once
+     per resize — the columns are all capped the same way. */
+  function edge(){
+    var vw = document.documentElement.clientWidth || 1, e = 0.30;
+    targets().forEach(function(el){
+      var b = el.getBoundingClientRect();
+      if(!b.width) return;
+      e = Math.max(e, b.right / vw, (vw - b.left) / vw);
+    });
+    if(box) box.style.setProperty('--edge', (Math.min(0.62, e) * 100).toFixed(1) + '%');
+  }
+
+  /* Which side of the viewport currently has copy on it, and how much of it.
+     Driven by geometry rather than by the stage, because two sections share
+     the screen during every handover: the stage says the copy is on the
+     right, and the section leaving the top still has its copy on the left. */
+  function sides(){
+    var vh = window.innerHeight, vw = document.documentElement.clientWidth || 1;
+    var L = 0, R = 0;
+    targets().forEach(function(el){
+      var b = el.getBoundingClientRect();
+      if(b.bottom <= 0 || b.top >= vh || !b.width) return;
+      /* saturates fast: a section three-quarters scrolled off still has a
+         line of copy on screen, and that line needs the same cover as a
+         whole section would */
+      var px = Math.min(vh, b.bottom) - Math.max(0, b.top);
+      var vis = Math.min(1, Math.max(0, px / (vh * 0.09)));
+      if(b.width / vw > 0.62){ L = Math.max(L, vis); R = Math.max(R, vis); return; }
+      if((b.left + b.right) / 2 < vw / 2) L = Math.max(L, vis); else R = Math.max(R, vis);
+    });
+    return [L, R];
+  }
+
+  return {
+    measure: edge,
+    set: function(k, dim){
+      if(!l) return;
+      var base = need(dim === undefined ? 1 : dim);
+      var sd = sides(), L = base * sd[0], R = base * sd[1];
+      /* During a morph the transit arc pushes every particle sideways, so the
+         half the copy occupies is briefly not empty. The cover rises and falls
+         with the same sin(pi t) the shader uses for the burst, which means it
+         is exactly zero at both ends: a settled stage is never dimmed for a
+         risk that is not there. */
+      var mid = Math.sin(Math.PI * Math.min(1, Math.max(0, k)));
+      L *= 1 - EASE * mid; R *= 1 - EASE * mid;
+      var U = 0;
+      if((document.documentElement.clientWidth || 0) < 900){
+        U = Math.max(U, floorNarrow, L, R); L = 0; R = 0;
+      }
+      l.style.opacity = L.toFixed(3);
+      r.style.opacity = R.toFixed(3);
+      u.style.opacity = U.toFixed(3);
+    }
+  };
+})();
+
+/* ---------------------------------------------------------------------
+   No WebGL2: the same shapes, as the stills the capture script writes out.
+   A visitor without a GL context sees the real sequence rather than a
+   gradient. The gradient stays underneath as the last resort, for a plate
+   that fails to load or a repo served without docs/frames.
+   --------------------------------------------------------------------- */
+function mountPlates(host){
+  var a = document.getElementById('plate-a'), b = document.getElementById('plate-b');
+  if(!a || !b) return;
+  var urls = [], state = [], cur = -1, front = false;
+  STAGE.forEach(function(st, i){
+    urls[i] = 'docs/frames/' + (i < 10 ? '0' : '') + i + '-' + SHAPE_NAME[i] + '-plate.png';
+    state[i] = 0;                                   /* 0 unknown, 1 ready, -1 failed */
+  });
+  /* Loaded on demand rather than up front: these are full-size stills, and
+     the visitor who gets them is by definition the one without a GL context.
+     Six of them eagerly is several megabytes spent on the slowest client. */
+  function load(i, then){
+    if(i < 0 || i >= urls.length || state[i] !== 0) { if(then) then(i); return; }
+    var img = new Image();
+    img.onload = function(){ state[i] = 1; if(then) then(i); };
+    img.onerror = function(){ state[i] = -1; };     /* the gradient shows through */
+    img.src = urls[i];
+  }
+  function show(i){
+    if(i === cur) return;
+    cur = i;
+    load(i, function(){ if(i !== cur || state[i] !== 1) return; paint(i); });
+    if(state[i] === 1) paint(i);
+    load(i + 1);                                    /* the next one, while idle */
+  }
+  function paint(i){
+    var next = front ? a : b, prev = front ? b : a;
+    next.style.backgroundImage = 'url("' + urls[i] + '")';
+    next.style.opacity = '1'; prev.style.opacity = '0';
+    front = !front;
+  }
+  function tick(){
+    var vh = window.innerHeight, y = (window.scrollY || 0) + vh / 2, best = 0, bd = 1e12;
+    for(var i = 0; i < STAGE.length; i++){
+      var el = document.querySelector(STAGE[i].anchor);
+      if(!el) continue;
+      var r = el.getBoundingClientRect();
+      var d = Math.abs((r.top + window.scrollY + r.height / 2) - y);
+      if(d < bd){ bd = d; best = i; }
+    }
+    show(best);
+    Scrim.measure();
+    Scrim.set(0, STAGE[best].dim);
+  }
+  window.addEventListener('scroll', tick, {passive:true});
+  window.addEventListener('resize', tick);
+  window.addEventListener('load', tick);
+  tick();
+}
+
+/* ---- boot ---- */
 (function(){
-  var body = document.body, scrim = document.getElementById('scrim');
-  var hero = document.getElementById('top'), prev = 0;
-  var QUIET = 0.86;                 /* measured: keeps body copy above 7:1 */
-  if(REDUCED){ scrim.style.opacity = QUIET; return; }
+  var host = document.getElementById('field');
+  var ok = false;
+  try{ ok = mountField(host); }catch(e){ ok = fail('mount threw', e); }
+  if(!ok) mountPlates(host);
+})();
+
+/* ---- the page reads the same velocity the field does ---- */
+(function(){
+  var body = document.body, prev = 0;
+  if(REDUCED){ return; }
   function tick(now){
     var dt = prev ? Math.min((now - prev) / 1000, 0.05) : 1/60;
     prev = now;
     var v = Motion.update(now, dt);
     body.style.setProperty('--vs', Math.max(-1, Math.min(1, v / 4)).toFixed(4));
     body.style.setProperty('--v', Math.min(1, Math.abs(v) / 6).toFixed(4));
-    var h = hero.offsetHeight || window.innerHeight;
-    var y = window.scrollY || 0;
-    /* 0 across the hero, easing to QUIET once the hero is leaving */
-    var past = Math.min(1, Math.max(0, (y - h * 0.35) / (h * 0.5)));
-    var floor = window.innerWidth < 900 ? 0.72 : 0;   /* measured: ash gray 14px needs this */
-    scrim.style.opacity = Math.max(floor, past * QUIET).toFixed(3);
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
